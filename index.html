@@ -31,7 +31,7 @@ summary{cursor:pointer;color:var(--eye)}
 label{display:block;margin:8px 0 2px;font-size:.85rem;color:var(--mut)}
 select,input[type=range],.s{width:100%;padding:6px;border-radius:8px;border:0;background:#0d1020;color:var(--txt)}
 #warn{display:none;background:#5a2b1f;border:1px solid #d2305a;border-radius:12px;padding:8px 12px;margin:6px 0;font-size:.85rem;cursor:pointer}
-video{width:110px;border-radius:10px;position:fixed;right:8px;bottom:8px;display:none;transform:scaleX(-1)}
+video{width:150px;border-radius:10px;position:fixed;right:8px;bottom:8px;display:none;transform:scaleX(-1)}
 </style>
 </head>
 <body>
@@ -388,20 +388,35 @@ $('cam').onclick=async()=>{
   const M='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
   await faceapi.nets.tinyFaceDetector.loadFromUri(M);await faceapi.nets.faceExpressionNet.loadFromUri(M);
  }catch(e){camTxt('📷 Camera on (face reader failed, tap to stop)');note('The camera works, but I could not download the face-reading model. Please check your internet connection and try again.');return}
- const opt=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.4});let last='';
+ const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+ let strat=0,miss=0,run=false,last='';
+ const optFor=()=>strat<2?new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.3}):new faceapi.SsdMobilenetv1Options({minConfidence:.3});
+ async function nextStrat(){
+  strat++;miss=0;
+  if(strat==1){try{await faceapi.tf.setBackend('cpu');await faceapi.tf.ready()}catch(e){console.warn(e)}}
+  if(strat==2){try{await faceapi.nets.ssdMobilenetv1.loadFromUri(M)}catch(e){camTxt('📷 Could not load the backup face model')}}
+ }
  camTxt('📷 Looking for your face...');
  fi=setInterval(async()=>{
-  if(!camOn||v.readyState<2)return;
-  try{const d=await faceapi.detectSingleFace(v,opt).withFaceExpressions();
-   if(!d){camTxt('📷 I cannot see your face');return}
+  if(!camOn||run||v.readyState<2||!v.videoWidth)return;run=true;
+  try{
+   // copy the current video frame to a canvas and read the face from that
+   cv.width=v.videoWidth;cv.height=v.videoHeight;cx.drawImage(v,0,0);
+   const px=cx.getImageData(0,0,cv.width,cv.height).data;let sum=0,n=0;
+   for(let k=0;k<px.length;k+=400){sum+=px[k]+px[k+1]+px[k+2];n+=3}
+   const bright=sum/n;
+   const d=await faceapi.detectSingleFace(cv,optFor()).withFaceExpressions();
+   if(!d){miss++;camTxt(bright<45?'📷 Too dark: please turn on a light':'📷 Looking for your face: look at the camera');if(miss>=6&&strat<2)await nextStrat();return}
+   miss=0;
    const top=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1])[0][0];
    faceEmo={fearful:'scared',disgusted:'angry'}[top]||top;
    camTxt('📷 You look: '+faceEmo+' (tap to stop)');
    if(faceEmo!==last&&!busy&&!talking){last=faceEmo;express(MIRROR[faceEmo]||'curious')}
    sadN=(faceEmo=='sad'||faceEmo=='angry')?sadN+1:0;
    if(sadN>=4&&!busy&&!talking&&!listening&&Date.now()-lastNudge>120000){lastNudge=Date.now();sadN=0;nudge(faceEmo)}
-  }catch(e){console.warn(e)}
- },1200);
+  }catch(e){console.warn(e);miss++;camTxt('📷 Face reader error: '+(e.message||e));if(miss>=3&&strat<2)await nextStrat()}
+  finally{run=false}
+ },1000);
 };
 // ===== start =====
 express('happy');
