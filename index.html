@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K chat</title>
+<link rel="preconnect" href="https://text.pollinations.ai">
+<link rel="preconnect" href="https://en.wikipedia.org">
 <style>
 :root{--bg:#1c1916;--panel:#2a2521;--panel2:#352e29;--ink:#f3e9dc;--mute:#a99b8b;--led:#ffb84d}
 *{box-sizing:border-box}
@@ -62,13 +64,13 @@ small{color:var(--mute)}
   </div>
 
   <div class="mem row"><small>K remembers (tap to forget):</small><span id="mem" class="row" style="gap:6px"></span></div>
-  <small>Free: uses your browser's voice tools plus a free no-key AI endpoint. Reply speed depends on your internet; most replies take 1–4 s, and K may be wrong, so check important facts.</small>
+  <small>Free. Instant answers (time, date, maths) take under 0.1 s, “who/what is…” questions come from Wikipedia, everything else streams from a free AI, so the first words usually appear fast. The timer under the face shows the real speed on your connection.</small>
 </div>
 
 <script>
 /* ---------- settings you can change ---------- */
 const API = "https://text.pollinations.ai/openai";   // free, no key
-const MODEL = "openai";                                // change here if the free model name changes
+const MODEL = "openai-fast";                           // fastest free text model (camera uses "openai" for vision)
 
 /* ---------- 2000 expressions = 10 eyes x 10 brows x 10 mouths x 2 cheeks ---------- */
 const eyeN=["round","happy","sad","wide","wink","heart","star","sleepy","angry","sparkle"];
@@ -144,37 +146,63 @@ genius:"A precise genius: rigorous, concise, explains the key idea clearly, give
 caring:"Warm, gentle and encouraging; notices feelings and responds like a close friend.",
 sassy:"Witty and sassy with friendly teasing, never mean.",calm:"Slow, peaceful and reassuring, like a mindful guide.",
 coach:"An energetic sports coach: motivating, short punchy sentences, loves sports talk.",storyteller:"A cosy storyteller who wraps answers in small vivid images."};
-function sys(){return `You are K, the face-screen companion robot inside the website "K chat". Personality: ${P[persona.value]} Stay in this personality exactly. Answer accurately; if unsure, say so. Keep replies to 1-3 short sentences unless asked for more. Always begin the reply with one tag from [${Object.keys(EMO).join(", ")}] that matches the feeling of the reply, e.g. "[happy] Hi!". Facts you know about the user (use them naturally): ${S.mem.join("; ")||"none yet"}.${camOn?" A live camera frame from the user's surroundings is attached; describe and answer about what you actually see.":""}`;}
+function sys(){return `You are K, a robot companion in "K chat". Personality: ${P[persona.value]} Stay in it. Be factually accurate; if unsure say "I'm not sure". Reply in 1-2 short sentences (max 40 words) unless asked for more. Start with ONE tag from [${Object.keys(EMO).join(",")}], e.g. "[happy] Hi!". User facts: ${S.mem.join("; ")||"none"}.${camOn?" A live camera frame is attached; answer from what you actually see.":""}`;}
 
 /* ---------- chat ---------- */
 const log=document.getElementById("log"),inp=document.getElementById("inp");
 let history=[],audioOn=false,camOn=false,speaking=false;
-function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight;}
-function frame(){const v=document.getElementById("cam"),c=document.createElement("canvas");c.width=512;c.height=Math.round(512*(v.videoHeight||3)/(v.videoWidth||4));c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.6);}
-function offline(q){const t=q.toLowerCase();
- if(/time/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
- if(/date|day/.test(t))return "[happy] Today is "+new Date().toDateString()+".";
- const m=q.replace(/[?=]/g,"").match(/[\d+\-*/().\s]{3,}/);
- if(m&&/\d\s*[+\-*/]\s*\d/.test(m[0])){try{return "[smart] That is "+Function('"use strict";return ('+m[0]+')')()+".";}catch(e){}}
- return "[sad] I can't reach my brain online right now. Check your internet and try again.";}
-async function ask(q){
- if(!q.trim())return;add("u",q);learn(q);
- show("thinking");const t0=performance.now();
- let content=q;
- if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
- history.push({role:"user",content});history=history.slice(-10);
- let out;
- try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
-  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,
-   body:JSON.stringify({model:MODEL,max_tokens:250,messages:[{role:"system",content:sys()},...history]})});
-  clearTimeout(to);const j=await r.json();out=j.choices[0].message.content;
- }catch(e){out=offline(q);}
- document.getElementById("ms").textContent=((performance.now()-t0)/1000).toFixed(1)+" s";
+function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight;return d;}
+function frame(){const v=document.getElementById("cam"),c=document.createElement("canvas");c.width=448;c.height=Math.round(448*(v.videoHeight||3)/(v.videoWidth||4));c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.5);}
+
+/* instant local answers (0 ms) */
+function local(q){const t=q.toLowerCase().trim().replace(/[?!.]+$/,"");
+ if(/^(hi|hello|hey|yo|hii+)\b/.test(t))return "[happy] Hey! I'm K. What shall we talk about?";
+ if(/how are you/.test(t))return "[happy] Running warm and cozy. How are you?";
+ if(/(your name|who are you)/.test(t))return "[proud] I'm K, your companion robot.";
+ if(/\b(what|tell).*\btime\b|^time$/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
+ if(/\b(today|date|what day)\b/.test(t)&&/what|tell/.test(t))return "[happy] Today is "+new Date().toDateString()+".";
+ const m=t.replace(/x/g,"*").replace(/[=]/g,"").match(/[\d(][\d+\-*/().\s%^]*[\d)]/);
+ if(m&&/\d\s*[+\-*/^%]\s*\(?\d/.test(m[0])&&/^(what|calc|solve|how much|[\d(])/.test(t)){try{const v=Function('"use strict";return ('+m[0].replace(/\^/g,"**")+')')();if(isFinite(v))return "[smart] That is "+Math.round(v*1e8)/1e8+".";}catch(e){}}
+ return null;}
+/* Wikipedia: fast and accurate for "who/what is X" */
+async function wiki(q){
+ const m=q.trim().match(/^(?:who|what|where)\s+(?:is|are|was|were)\s+(?:a |an |the )?(.+?)[?.!]*$/i);
+ if(!m||camOn||/\b(you|your|my|me|i|weather|time|today|best|should|now|better|difference)\b/i.test(m[1]))return null;
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),1000);
+ const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(m[1])+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
+ clearTimeout(to);const j=await r.json();const p=Object.values(j.query.pages)[0];
+ return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}
+/* streaming LLM: words appear as they arrive */
+async function llm(content,onText){
+ const body=m=>JSON.stringify({model:camOn?"openai":MODEL,max_tokens:camOn?160:100,temperature:.6,...m,messages:[{role:"system",content:sys()},...history,{role:"user",content}]});
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),9000);
+ let full="";
+ try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,body:body({stream:true})});
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf="";
+  for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+   const lines=buf.split("\n");buf=lines.pop();
+   for(const l of lines){if(!l.startsWith("data:"))continue;const d=l.slice(5).trim();if(d==="[DONE]")continue;
+    try{const c=JSON.parse(d).choices?.[0]?.delta?.content;if(c){full+=c;onText(full);}}catch(e){}}}}catch(e){}
+ if(!full){try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,body:body({})});const j=await r.json();full=j.choices[0].message.content;onText(full);}catch(e){}}
+ clearTimeout(to);return full;}
+function finish(out,bub){
  let emo="neutral";const m=out.match(/^\s*\[(\w+)\]\s*/);
  if(m){if(EMO[m[1].toLowerCase()])emo=m[1].toLowerCase();out=out.slice(m[0].length);}
- else if(/haha|funny|joke/i.test(out))emo="laugh";
- history.push({role:"assistant",content:out});
- add("b",out);show(emo);speak(out);}
+ bub.textContent=out;log.scrollTop=log.scrollHeight;show(emo);speak(out);return out;}
+async function ask(q){
+ if(!q.trim())return;add("u",q);learn(q);show("thinking");
+ const t0=performance.now(),secs=()=>((performance.now()-t0)/1000).toFixed(2)+" s",msEl=document.getElementById("ms");
+ let out=local(q),src="instant";
+ if(!out){try{out=await wiki(q);src="Wikipedia";}catch(e){out=null;}}
+ const bub=add("b","…");
+ if(!out){src="AI";let first=true,content=q;
+  if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
+  out=await llm(content,t=>{if(first){first=false;msEl.textContent="first words "+secs();}bub.textContent=t.replace(/^\s*\[\w*\]?\s*/,"");});
+  if(!out)out="[sad] I can't reach my online brain. Check your internet and try again.";
+  else msEl.textContent="first words "+msEl.textContent.replace("first words ","")+" · done "+secs();}
+ else msEl.textContent=src+" · "+secs();
+ const clean=finish(out,bub);
+ history.push({role:"user",content:q},{role:"assistant",content:clean});history=history.slice(-8);}
 function speak(t){if(!audioOn||!window.speechSynthesis){return;}
  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);
  u.pitch=persona.value==="calm"?.8:persona.value==="playful"?1.4:1.1;u.rate=persona.value==="coach"?1.2:1;
