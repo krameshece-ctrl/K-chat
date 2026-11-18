@@ -147,7 +147,7 @@ genius:"A precise genius: rigorous, concise, explains the key idea clearly, give
 caring:"Warm, gentle and encouraging; notices feelings and responds like a close friend.",
 sassy:"Witty and sassy with friendly teasing, never mean.",calm:"Slow, peaceful and reassuring, like a mindful guide.",
 coach:"An energetic sports coach: motivating, short punchy sentences, loves sports talk.",storyteller:"A cosy storyteller who wraps answers in small vivid images."};
-function sys(){return `You are K, a robot companion in "K chat". Personality: ${P[persona.value]} Stay in it. Be factually accurate; if unsure say "I'm not sure". Reply in 1-2 short sentences (max 40 words) unless asked for more. Start with ONE tag from [${Object.keys(EMO).join(",")}], e.g. "[happy] Hi!". User facts: ${S.mem.join("; ")||"none"}.${camOn?" A live camera frame is attached; answer from what you actually see.":""}`;}
+function sys(){return `You are K chat (call yourself "K chat"), a cozy friendly robot companion with a screen face. If asked about yourself say you are K chat. If the user says they want to tell a joke or story, invite them to go ahead; never answer with random encyclopedia facts to casual talk. Personality: ${P[persona.value]} Stay in it. Be factually accurate; if unsure say "I'm not sure". Reply in 1-2 short sentences (max 40 words) unless asked for more. Start with ONE tag from [${Object.keys(EMO).join(",")}], e.g. "[happy] Hi!". User facts: ${S.mem.join("; ")||"none"}.${camOn?" A live camera frame is attached; answer from what you actually see.":""}`;}
 
 /* ---------- chat ---------- */
 const log=document.getElementById("log"),inp=document.getElementById("inp");
@@ -156,8 +156,23 @@ function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d
 function frame(){const v=document.getElementById("cam"),c=document.createElement("canvas");c.width=448;c.height=Math.round(448*(v.videoHeight||3)/(v.videoWidth||4));c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.5);}
 
 /* instant local answers (0 ms) */
+const JOKES=["Why don't robots ever panic? We have nerves of steel.","I told my computer I needed a break. Now it won't stop sending me vacation ads.","Why did the scarecrow win an award? He was outstanding in his field.","What do you call a fake noodle? An impasta.","Why did the football coach go to the bank? To get his quarterback.","I'd tell you a UDP joke, but you might not get it.","Why do bees have sticky hair? They use honeycombs.","What do you call a sleeping robot? A bot-nap."];
+let awaitJoke=false,jokeI=Math.floor(Math.random()*8);
 function local(q){const t=q.toLowerCase().trim().replace(/[?!.]+$/,"");
- if(/^(hi|hello|hey|yo|hii+)\b/.test(t))return "[happy] Hey! I'm K. What shall we talk about?";
+
+ if(awaitJoke&&!/\?$/.test(q.trim())){awaitJoke=false;return "[laugh] Hahaha, that's a good one! You have a great sense of humour. Want to hear one of mine?";}
+ if(/(tell|say|share).{0,12}(you|u).{0,12}(a )?(joke|story)|let me (tell|say)|i have a joke|i want to tell you a joke/.test(t)){awaitJoke=true;return "[curious] Yes please, I'm all ears. Tell me your joke!";}
+ if(/\b(joke|make me laugh|something funny)\b/.test(t))return "[laugh] "+JOKES[jokeI++%JOKES.length];
+ if(/(about you|about yourself|know more about you|introduce yourself|tell me about you|who are you|what are you|your name|who r u)/.test(t))return "[proud] I am K chat, your cozy companion robot. I live on this screen, talk with you by text or voice, show how I feel with my face, and can look through your camera and answer about what's around you. I also switch personalities and remember what you like.";
+ if(/(what can you do|your features|how do you work|help me)/.test(t))return "[excited] I can chat by text or voice, show over 2000 face expressions, see your surroundings with the camera, change personality (playful, genius, caring and more), and remember your likes.";
+ if(/(who (made|built|created) you|who is your (creator|maker))/.test(t))return "[proud] I'm K chat, a free web robot built from HTML. My answers come from a free AI service plus Wikipedia.";
+ if(/(how old are you|your age)/.test(t))return "[playful] I was switched on the moment you opened this page, so I'm brand new every time!";
+ if(/(i love you|love you)/.test(t))return "[love] Aww, I like you too! You're my favourite human right now.";
+ if(/^(thanks|thank you|thx)/.test(t))return "[happy] You're welcome! Anything else?";
+ if(/^(bye|goodbye|good night|see you)/.test(t))return "[sleepy] Bye for now! I'll keep the screen warm for you.";
+ if(/(i am|i'm|im) (sad|upset|lonely|bored|tired|angry)/.test(t))return "[love] I'm here with you. Want to talk about it, hear a joke, or just chill together?";
+ if(/(i am|i'm|im) (happy|good|great|fine)/.test(t))return "[happy] I love that! Tell me what made your day good.";
+ if(/^(hi|hello|hey|yo|hii+)\b/.test(t))return "[happy] Hey! I am K chat. What shall we talk about?";
  if(/how are you/.test(t))return "[happy] Running warm and cozy. How are you?";
  if(/(your name|who are you)/.test(t))return "[proud] I'm K, your companion robot.";
  if(/\b(what|tell).*\btime\b|^time$/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
@@ -201,7 +216,7 @@ async function llm(content,onText){
  catch(e){lastErr+=" | GET: "+(e.message||e);}
  return "";}
 /* last resort when the AI route is down: best Wikipedia match for the question */
-async function wikiAny(q){try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),3000);
+async function wikiAny(q){if(!/^(who|what|when|where|which|why|how (many|much|old|tall|far|long|big)|define|explain|capital|tell me about)\b/i.test(q.trim())||/\b(you|your|yourself|i|my|me|we|us)\b/i.test(q))return null;try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),3000);
  const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(q)+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
  const j=await r.json();const p=Object.values(j.query.pages)[0];return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}catch(e){return null;}}
 function finish(out,bub){
@@ -218,7 +233,7 @@ async function ask(q){
   if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
   out=await llm(content,t=>{if(first){first=false;msEl.textContent="first words "+secs();}bub.textContent=t.replace(/^\s*\[\w*\]?\s*/,"");});
   if(!out&&!camOn){out=await wikiAny(q);if(out)src="Wikipedia (AI route down)";}
-  if(!out)out="[sad] My online brain didn\'t answer ("+(lastErr||"no response")+"). Check your internet, then try again in a few seconds. The free service allows one request at a time.";
+  if(!out)out="[sad] I\'m K chat and I\'m here, but my online brain didn\'t answer ("+(lastErr||"no response")+"). Please try again in a few seconds. The free service allows one request at a time.";
   else msEl.textContent="first words "+msEl.textContent.replace("first words ","")+" · done "+secs();}
  else msEl.textContent=src+" · "+secs();
  const clean=finish(out,bub);
@@ -255,7 +270,7 @@ persona.onchange=()=>{save();history=[];show({playful:"playful",genius:"smart",c
 
 const keyEl=document.getElementById("key");keyEl.value=S.key||"";keyEl.onchange=()=>{S.key=keyEl.value.trim();save();};
 persona.value=S.persona;setLED(S.led);renderMem();show("happy");
-add("b","Hi, I'm K. Pick a personality, then type or switch to Audio. Tell me what you like and I'll remember it.");
+add("b","Hi, I am K chat. Pick a personality, then type or switch to Audio. Tell me what you like and I'll remember it.");
 </script>
 </body>
 </html>
