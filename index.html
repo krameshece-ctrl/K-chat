@@ -4,33 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K chat</title>
-<link rel="preconnect" href="https://text.pollinations.ai">
-<link rel="preconnect" href="https://en.wikipedia.org">
 <style>
 :root{--bg:#1c1916;--panel:#2a2521;--panel2:#352e29;--ink:#f3e9dc;--mute:#a99b8b;--led:#ffb84d}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Trebuchet MS","Segoe UI",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
 h1{font:800 2.2rem/1 "Trebuchet MS",sans-serif;letter-spacing:.04em;margin:4px 0 12px}
 .wrap{width:100%;max-width:760px;display:flex;flex-direction:column;gap:12px}
-.robot{background:var(--panel);border-radius:40px;padding:14px;box-shadow:inset 0 0 0 3px var(--panel2),0 12px 30px #0008}
-.screen{background:#050505;border-radius:28px;position:relative;overflow:hidden;aspect-ratio:5/3}
+.robot{background:var(--panel);border-radius:44px;padding:14px;box-shadow:inset 0 0 0 3px var(--panel2),0 12px 30px #0008}
+.screen{background:#050505;border-radius:30px;position:relative;overflow:hidden;aspect-ratio:5/3}
 .screen svg{width:100%;height:100%;display:block}
 .tag{position:absolute;left:14px;bottom:8px;font-size:.75rem;color:var(--mute)}
 .ms{position:absolute;right:14px;bottom:8px;font-size:.75rem;color:var(--mute)}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .btn{border:0;border-radius:999px;padding:10px 16px;background:var(--panel2);color:var(--ink);font:inherit;cursor:pointer}
 .btn[aria-pressed=true]{background:var(--led);color:#1c1916;font-weight:700}
-.btn:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--led);outline-offset:2px}
-select,input[type=text]{background:var(--panel2);color:var(--ink);border:0;border-radius:999px;padding:10px 14px;font:inherit}
-input[type=text]{flex:1;min-width:0}
+.btn:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--led);outline-offset:2px}
+select,input[type=text],input[type=password]{background:var(--panel2);color:var(--ink);border:0;border-radius:999px;padding:9px 14px;font:inherit;min-width:0}
+input[type=text]{flex:1}
 .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--panel2);cursor:pointer;padding:0}
 #log{background:var(--panel);border-radius:24px;padding:12px;height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-.m{max-width:85%;padding:8px 12px;border-radius:16px}
+.m{max-width:85%;padding:8px 12px;border-radius:16px;white-space:pre-wrap}
 .u{align-self:flex-end;background:var(--panel2)}
 .b{align-self:flex-start;background:#3d3229;border-left:4px solid var(--led)}
-video{width:160px;border-radius:16px;background:#000;display:none}
-.mem span{background:var(--panel2);border-radius:999px;padding:2px 10px;font-size:.85rem;cursor:pointer}
+video{width:200px;border-radius:16px;background:#000;display:none}
+.mem span.c{background:var(--panel2);border-radius:999px;padding:2px 10px;font-size:.85rem;cursor:pointer}
 small{color:var(--mute)}
+details{background:var(--panel);border-radius:24px;padding:10px 14px}
+summary{cursor:pointer;font-weight:700}
+.k{display:grid;grid-template-columns:150px 1fr 1fr;gap:6px;margin-top:8px;align-items:center}
+.k label{font-size:.9rem}.k label small{display:block}
+.k input{width:100%}
+@media (max-width:620px){.k{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -59,143 +63,166 @@ small{color:var(--mute)}
     <input type="text" id="inp" placeholder="Type to K…" aria-label="Message">
     <button class="btn" id="send">Send</button>
   </div>
-  <div class="row" id="audioRow" style="display:none">
-    <span id="listen">Listening… speak to K.</span>
-  </div>
+  <div class="row" id="audioRow" style="display:none"><span id="listen">Audio is on.</span></div>
 
-  <div class="row"><input type="password" id="key" placeholder="Optional free API key (enter.pollinations.ai) for faster, steadier answers" aria-label="Optional API key"></div>
+  <details id="keybox">
+    <summary>Free API keys: paste any you like</summary>
+    <small>K uses every key you fill, fastest first, and moves to the next if one fails. Keys stay in this browser only. Camera questions need a vision-capable key (Gemini, OpenAI or Groq). Model names are editable if a provider renames them.</small>
+    <div id="keys"></div>
+  </details>
+
   <div class="mem row"><small>K remembers (tap to forget):</small><span id="mem" class="row" style="gap:6px"></span></div>
-  <small>Free. Instant answers (time, date, maths) take under 0.1 s, “who/what is…” questions come from Wikipedia, everything else streams from a free AI, so the first words usually appear fast. The timer under the face shows the real speed on your connection.</small>
 </div>
 
 <script>
-/* ---------- settings you can change ---------- */
-const API = "https://text.pollinations.ai/openai";   // free, no key
-const MODEL = "";   // empty = the free endpoint picks its default model (most reliable)
+/* ---------- providers (all OpenAI-compatible, all work straight from the browser) ---------- */
+const PROV=[
+ {id:"groq",name:"Groq",hint:"console.groq.com",url:"https://api.groq.com/openai/v1/chat/completions",model:"llama-3.3-70b-versatile",vision:"meta-llama/llama-4-scout-17b-16e-instruct"},
+ {id:"gemini",name:"Google Gemini",hint:"aistudio.google.com",url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",model:"gemini-2.5-flash",vision:"gemini-2.5-flash"},
+ {id:"openrouter",name:"OpenRouter",hint:"openrouter.ai/keys",url:"https://openrouter.ai/api/v1/chat/completions",model:"meta-llama/llama-3.3-70b-instruct:free",vision:"google/gemma-3-27b-it:free"},
+ {id:"openai",name:"OpenAI",hint:"platform.openai.com",url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o-mini",vision:"gpt-4o-mini"},
+ {id:"pollen",name:"Pollinations",hint:"enter.pollinations.ai",url:"https://gen.pollinations.ai/v1/chat/completions",model:"openai",vision:"openai"},
+ {id:"custom",name:"Custom provider",hint:"any OpenAI-compatible URL",url:"",model:"",vision:""}];
+const FREE_API="https://text.pollinations.ai/openai"; /* no-key fallback */
 
-/* ---------- 2000 expressions = 10 eyes x 10 brows x 10 mouths x 2 cheeks ---------- */
-const eyeN=["round","happy","sad","wide","wink","heart","star","sleepy","angry","sparkle"];
-const browN=["none","raised","flat","angry","worried","one-up","arch","low","tilt","bounce"];
-const mouthN=["smile","grin","flat","frown","open","smirk","tongue","tiny","wavy","cat"];
-const BR=[null,[-36,0],[-34,0],[-30,18],[-30,-18],[-30,0,1],[-40,-6],[-24,0],[-32,10],[-38,6]];
-const EMO={neutral:[0,2,7,0],happy:[1,1,0,1],excited:[3,1,1,1],love:[5,1,0,1],sad:[2,4,3,0],angry:[8,3,3,0],
-thinking:[0,5,5,0],sleepy:[7,7,7,0],surprised:[3,6,4,0],playful:[4,5,6,0],cool:[9,2,5,0],curious:[0,1,7,0],
-proud:[6,1,0,1],silly:[9,9,8,0],laugh:[1,6,1,1],shy:[2,7,9,1],smart:[0,8,5,0],confused:[0,5,8,0]};
-const idx=([e,b,m,x])=>((e*10+b)*10+m)*2+x;
-
-let LED=getComputedStyle(document.documentElement).getPropertyValue("--led").trim()||"#ffb84d";
-function eye(cx,t,side){const y=100,c=LED;
+/* ---------- face: 20 emotions x 10 gaze directions x 10 intensities = 2000 expressions ---------- */
+const BG="#050505";
+const EM={
+ neutral:{h:90,m:"smile",k:.3},
+ happy:{h:84,ck:.55,m:"smile",k:.9,x:"blush"},
+ excited:{h:106,m:"open",k:1,x:"spark"},
+ love:{s:"heart",m:"smile",k:.9,x:"blush"},
+ sad:{h:80,a:-24,c:14,m:"smile",k:-.9},
+ cry:{h:78,a:-26,c:16,m:"smile",k:-1,x:"tears"},
+ angry:{h:80,a:26,c:16,m:"smile",k:-.7},
+ annoyed:{h:84,c:38,m:"flat"},
+ surprised:{h:114,w:78,m:"o"},
+ curious:{h:90,h2:110,m:"tiny",g:6},
+ thinking:{h:84,a:8,c:6,m:"smirk",x:"dots",g:5},
+ sleepy:{h:16,m:"tiny",x:"zzz"},
+ playful:{s:"wink",h:90,m:"tongue"},
+ cool:{h:80,c:36,m:"smirk"},
+ proud:{s:"arc",m:"smile",k:.8,x:"spark"},
+ shy:{h:70,ck:.3,m:"tiny",x:"blush",g:7},
+ laugh:{s:"arc",m:"open",k:1,x:"blush"},
+ confused:{h:90,h2:66,m:"wavy",x:"q"},
+ scared:{h:108,m:"wavy",x:"sweat"},
+ smart:{h:84,a:6,c:8,m:"smirk",x:"glasses"}};
+const NAMES=Object.keys(EM);
+const ALIAS={joy:"excited",calm:"neutral",smile:"happy",sorry:"sad",worried:"scared",silly:"playful",funny:"laugh",surprise:"surprised",think:"thinking",genius:"smart",tired:"sleepy",upset:"sad",mad:"angry"};
+const GZ=[[0,0],[-14,0],[14,0],[0,-12],[0,12],[-12,-10],[12,-10],[-12,10],[12,10],[0,-5]];
+let LED="#ffb84d";
+function mouthSvg(t,k,L){const y=195;const s=`stroke="${L}" stroke-width="10" fill="none" stroke-linecap="round"`;
  switch(t){
- case 0:return `<circle cx="${cx}" cy="${y}" r="26" fill="${c}"/>`;
- case 1:return `<path d="M${cx-26} ${y+10} Q${cx} ${y-30} ${cx+26} ${y+10}" stroke="${c}" stroke-width="12" fill="none" stroke-linecap="round"/>`;
- case 2:return `<ellipse cx="${cx}" cy="${y+6}" rx="22" ry="26" fill="${c}"/><rect x="${cx-26}" y="${y-24}" width="52" height="18" fill="#050505" transform="rotate(${side*14} ${cx} ${y})"/>`;
- case 3:return `<circle cx="${cx}" cy="${y}" r="34" fill="${c}"/><circle cx="${cx+8}" cy="${y-8}" r="9" fill="#050505"/>`;
- case 4:return side<0?`<circle cx="${cx}" cy="${y}" r="26" fill="${c}"/>`:`<path d="M${cx-24} ${y} L${cx+24} ${y}" stroke="${c}" stroke-width="12" stroke-linecap="round"/>`;
- case 5:return `<path d="M${cx} ${y+28} C${cx-50} ${y-6} ${cx-18} ${y-40} ${cx} ${y-14} C${cx+18} ${y-40} ${cx+50} ${y-6} ${cx} ${y+28}Z" fill="${c}"/>`;
- case 6:return `<path d="M${cx} ${y-30} L${cx+9} ${y-9} L${cx+31} ${y-9} L${cx+13} ${y+5} L${cx+20} ${y+28} L${cx} ${y+14} L${cx-20} ${y+28} L${cx-13} ${y+5} L${cx-31} ${y-9} L${cx-9} ${y-9}Z" fill="${c}"/>`;
- case 7:return `<path d="M${cx-26} ${y+4} Q${cx} ${y+22} ${cx+26} ${y+4}" stroke="${c}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
- case 8:return `<ellipse cx="${cx}" cy="${y+4}" rx="24" ry="22" fill="${c}"/><rect x="${cx-30}" y="${y-30}" width="60" height="22" fill="#050505" transform="rotate(${-side*20} ${cx} ${y-12})"/>`;
- default:return `<circle cx="${cx}" cy="${y}" r="18" fill="${c}"/><circle cx="${cx-6}" cy="${y-6}" r="5" fill="#fff"/><path d="M${cx+26} ${y-26}l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="${c}"/>`;}}
-function mouth(t){const c=LED,y=190,s=`stroke="${c}" stroke-width="10" fill="none" stroke-linecap="round"`;
- return [`<path d="M170 ${y} Q200 ${y+28} 230 ${y}" ${s}/>`,
- `<path d="M160 ${y-4} Q200 ${y+46} 240 ${y-4}Z" fill="${c}"/>`,
- `<path d="M172 ${y+8} H228" ${s}/>`,
- `<path d="M170 ${y+18} Q200 ${y-10} 230 ${y+18}" ${s}/>`,
- `<ellipse cx="200" cy="${y+10}" rx="18" ry="24" fill="${c}"/>`,
- `<path d="M170 ${y+8} Q205 ${y+20} 235 ${y-6}" ${s}/>`,
- `<path d="M165 ${y-2} Q200 ${y+22} 235 ${y-2}" ${s}/><path d="M205 ${y+10} v22 a9 9 0 0 0 18 0 v-22z" fill="#ff6f91"/>`,
- `<circle cx="200" cy="${y+8}" r="7" fill="${c}"/>`,
- `<path d="M165 ${y+8} q9 -14 18 0 t18 0 t18 0 t18 0" ${s}/>`,
- `<path d="M168 ${y} q16 22 32 0 q16 22 32 0" ${s}/>`][t];}
-function face([e,b,m,x]){const br=BR[b];
- let h="";
- if(br){const [dy,r,one]=br;
-  h+=`<path d="M90 ${100+dy} H150" stroke="${LED}" stroke-width="9" stroke-linecap="round" transform="rotate(${r} 120 ${100+dy})"/>`;
-  h+=`<path d="M250 ${100+dy-(one?14:0)} H310" stroke="${LED}" stroke-width="9" stroke-linecap="round" transform="rotate(${-r} 280 ${100+dy})"/>`;}
- h+=eye(120,e,-1)+eye(280,e,1)+mouth(m);
- if(x)h+=`<ellipse cx="78" cy="160" rx="18" ry="9" fill="#ff6f91" opacity=".55"/><ellipse cx="322" cy="160" rx="18" ry="9" fill="#ff6f91" opacity=".55"/>`;
- return `<svg viewBox="0 0 400 240"><g id="eyes" style="transform-origin:200px 100px;transition:transform .08s">${h}</g></svg>`;}
-let cur=EMO.neutral,curName="neutral",speakTimer=null;
+ case"smile":{const yy=y+(k<0?14:0);return `<path d="M168 ${yy} Q200 ${yy+46*k} 232 ${yy}" ${s}/>`;}
+ case"open":return `<path d="M162 ${y-6} Q200 ${y+30+30*k} 238 ${y-6}Z" fill="${L}"/>`;
+ case"o":return `<ellipse cx="200" cy="${y+10}" rx="14" ry="19" fill="${L}"/>`;
+ case"flat":return `<path d="M175 ${y+8} H225" ${s}/>`;
+ case"tiny":return `<path d="M184 ${y+6} Q200 ${y+17} 216 ${y+6}" ${s}/>`;
+ case"smirk":return `<path d="M172 ${y+8} Q200 ${y+14} 232 ${y-6}" ${s}/>`;
+ case"wavy":return `<path d="M166 ${y+8} q9 -12 18 0 t18 0 t18 0 t18 0" ${s}/>`;
+ case"tongue":return `<path d="M165 ${y-2} Q200 ${y+24} 235 ${y-2}" ${s}/><path d="M204 ${y+12} v20 a9 9 0 0 0 18 0 v-20z" fill="#ff7a93"/>`;}
+ return "";}
+const XT={
+ blush:`<ellipse cx="84" cy="164" rx="20" ry="10" fill="#ff8fa3"/><ellipse cx="316" cy="164" rx="20" ry="10" fill="#ff8fa3"/>`,
+ tears:`<path d="M106 150 q-9 16 0 24 q9 -8 0 -24z M294 150 q-9 16 0 24 q9 -8 0 -24z" fill="#7cc4ff"/>`,
+ sweat:`<path d="M346 40 q-11 19 0 28 q11 -9 0 -28z" fill="#7cc4ff"/>`,
+ zzz:`<text x="318" y="52" fill="L" font-size="30" font-weight="700" font-family="sans-serif">z</text><text x="344" y="28" fill="L" font-size="22" font-weight="700" font-family="sans-serif">z</text>`,
+ q:`<text x="316" y="64" fill="L" font-size="54" font-weight="700" font-family="sans-serif">?</text>`,
+ dots:`<circle cx="318" cy="48" r="6" fill="L"/><circle cx="341" cy="48" r="6" fill="L"/><circle cx="364" cy="48" r="6" fill="L"/>`,
+ spark:`<path d="M346 20 l6 17 17 6 -17 6 -6 17 -6 -17 -17 -6 17 -6z" fill="L"/><path d="M56 40 l4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4z" fill="L"/>`};
+function face(name,gz,iv,mo){
+ const E=EM[name]||EM.neutral,f=.6+.4*iv/9,[dx,dy]=GZ[gz],L=LED;let eyes="";
+ for(const sd of[-1,1]){
+  const cx=200+sd*80+dx,cy=100+dy,w=E.w||70;let sh=E.s||"r",h=(sd===1&&E.h2)?E.h2:(E.h||90);
+  if(sh==="wink")sh=sd===1?"line":"r";
+  if(sh==="line"){h=14;sh="r";}
+  if(sh==="r"){
+   eyes+=`<rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="${Math.min(w,h)/2.4}" fill="${L}"/>`;
+   const a=E.a||0,c=E.c||0;
+   if(a||c){const py=cy-h/2+c*f+Math.abs(a)*.45*f;eyes+=`<rect x="${cx-w}" y="${py-100}" width="${2*w}" height="100" fill="${BG}" transform="rotate(${-sd*a*f} ${cx} ${py})"/>`;}
+   if(E.ck)eyes+=`<ellipse cx="${cx}" cy="${cy+h/2+22-E.ck*f*34}" rx="${w*.9}" ry="26" fill="${BG}"/>`;
+   if(E.x==="glasses")eyes+=`<rect x="${cx-w/2-10}" y="${cy-h/2-10}" width="${w+20}" height="${h+20}" rx="22" fill="none" stroke="${L}" stroke-width="4"/>`;
+  }else if(sh==="arc")eyes+=`<path d="M${cx-30} ${cy+14} Q${cx} ${cy-34} ${cx+30} ${cy+14}" stroke="${L}" stroke-width="15" fill="none" stroke-linecap="round"/>`;
+  else eyes+=`<path d="M${cx} ${cy+30} C${cx-52} ${cy-6} ${cx-20} ${cy-42} ${cx} ${cy-16} C${cx+20} ${cy-42} ${cx+52} ${cy-6} ${cx} ${cy+30}Z" fill="${L}"/>`;}
+ const m=mo||{m:E.m,k:(E.k||0)*f};
+ let ex=E.x&&XT[E.x]?XT[E.x].replace(/"L"/g,`"${L}"`):"";
+ if(E.x==="glasses")ex=`<path d="M165 100 h70" stroke="${L}" stroke-width="4"/>`;
+ return `<svg viewBox="0 0 400 240"><g id="eyes" style="transform-origin:200px 100px;transition:transform .08s">${eyes}</g>${mouthSvg(m.m,m.k,L)}${ex}</svg>`;}
+let cur={n:"neutral",g:0,i:6},talk=null;
 const scr=document.getElementById("screen");
-function show(name){const f=EMO[name]||EMO.neutral;cur=f;curName=name;
- scr.querySelector("svg")?.remove();scr.insertAdjacentHTML("afterbegin",face(f));
- document.getElementById("tag").textContent=`${name} · expression ${idx(f)+1} of 2000`;}
-function setLED(c){LED=c;document.documentElement.style.setProperty("--led",c);show(curName);}
+function draw(mo){scr.querySelector("svg")?.remove();scr.insertAdjacentHTML("afterbegin",face(cur.n,cur.g,cur.i,mo));}
+function show(n,i){n=EM[n]?n:(ALIAS[n]||"neutral");cur={n,g:EM[n].g??0,i:i??6};draw();
+ document.getElementById("tag").textContent=`${n} · expression ${NAMES.indexOf(n)*100+cur.g*10+cur.i+1} of 2000`;}
+function setLED(c){LED=c;document.documentElement.style.setProperty("--led",c);draw();}
 setInterval(()=>{const g=document.getElementById("eyes");if(!g)return;g.style.transform="scaleY(.1)";setTimeout(()=>g.style.transform="",110);},3600);
-function talkOn(){clearInterval(speakTimer);let o=false;speakTimer=setInterval(()=>{o=!o;const f=[...cur];f[2]=o?4:cur[2];
- scr.querySelector("svg")?.remove();scr.insertAdjacentHTML("afterbegin",face(f));},230);}
-function talkOff(){clearInterval(speakTimer);show(curName);}
-
-/* ---------- LED colours ---------- */
+setInterval(()=>{if(talk||busy||EM[cur.n].g!==undefined)return;cur.g=[0,1,2,0,3][Math.floor(Math.random()*5)];draw();},3000);
+function talkOn(){clearInterval(talk);let o=false;talk=setInterval(()=>{o=!o;draw(o?{m:"open",k:.2}:{m:"tiny",k:0});},220);}
+function talkOff(){clearInterval(talk);talk=null;draw();}
 ["#ffb84d","#5ff2d0","#7cc4ff","#ff7aa8","#ffffff"].forEach(c=>{const d=document.createElement("button");d.className="dot";d.style.background=c;d.setAttribute("aria-label","LED colour "+c);d.onclick=()=>{setLED(c);save();};document.getElementById("dots").append(d);});
 
-/* ---------- memory ---------- */
-let S=JSON.parse(localStorage.getItem("kchat")||"{}");S.mem=S.mem||[];S.persona=S.persona||"playful";S.led=S.led||"#ffb84d";
+/* ---------- memory & settings ---------- */
+let S=JSON.parse(localStorage.getItem("kchat")||"{}");S.mem=S.mem||[];S.persona=S.persona||"playful";S.led=S.led||"#ffb84d";S.keys=S.keys||{};
 function save(){S.persona=persona.value;S.led=LED;localStorage.setItem("kchat",JSON.stringify(S));}
-function renderMem(){const m=document.getElementById("mem");m.innerHTML="";S.mem.forEach((t,i)=>{const s=document.createElement("span");s.textContent=t+" ×";s.onclick=()=>{S.mem.splice(i,1);save();renderMem();};m.append(s);});if(!S.mem.length)m.innerHTML="<small>nothing yet. Try “I like football”.</small>";}
-function learn(t){const add=x=>{x=x.trim();if(x&&!S.mem.includes(x)&&S.mem.length<25)S.mem.push(x);};
- let r;
+function renderMem(){const m=document.getElementById("mem");m.innerHTML="";S.mem.forEach((t,i)=>{const s=document.createElement("span");s.className="c";s.textContent=t+" ×";s.onclick=()=>{S.mem.splice(i,1);save();renderMem();};m.append(s);});if(!S.mem.length)m.innerHTML="<small>nothing yet. Try “I like football”.</small>";}
+function learn(t){const add=x=>{x=x.trim();if(x&&!S.mem.includes(x)&&S.mem.length<25)S.mem.push(x);};let r;
  if(r=t.match(/my name is (\w+)/i))add("name: "+r[1]);
  if(r=t.match(/\bi (?:really |also )?(?:like|love|enjoy|play|watch|prefer) ([^.!?,]{2,40})/i))add("likes "+r[1]);
  if(r=t.match(/\bi (?:hate|dislike|can't stand) ([^.!?,]{2,40})/i))add("dislikes "+r[1]);
  if(r=t.match(/my fav(?:ou?rite)? (\w+) is ([^.!?,]{2,40})/i))add("favourite "+r[1]+": "+r[2]);
  save();renderMem();}
+/* key boxes */
+const keysEl=document.getElementById("keys");
+PROV.forEach(p=>{const c=S.keys[p.id]=S.keys[p.id]||{};
+ const lab=document.createElement("label");lab.innerHTML=`${p.name}<small>${p.hint}</small>`;
+ const k=document.createElement("input");k.type="password";k.placeholder="Paste key";k.value=c.key||"";k.autocomplete="off";k.setAttribute("aria-label",p.name+" key");k.oninput=()=>{c.key=k.value.trim();save();};
+ const wrap=document.createElement("div");wrap.className="row";wrap.style.flexWrap="nowrap";
+ const m=document.createElement("input");m.type="text";m.placeholder="Model: "+(p.model||"required");m.value=c.model||"";m.setAttribute("aria-label",p.name+" model");m.oninput=()=>{c.model=m.value.trim();save();};
+ keysEl.append(lab,k,m);
+ if(p.id==="custom"){const u=document.createElement("input");u.type="text";u.placeholder="https://…/v1/chat/completions";u.value=c.url||"";u.setAttribute("aria-label","Custom URL");u.oninput=()=>{c.url=u.value.trim();save();};
+  keysEl.append(document.createElement("span"),u,document.createElement("span"));}});
 
 /* ---------- personalities ---------- */
-const P={playful:"Playful, jokey, bouncy, uses fun wordplay and light emoji-free humour.",
-genius:"A precise genius: rigorous, concise, explains the key idea clearly, gives exact facts and numbers.",
-caring:"Warm, gentle and encouraging; notices feelings and responds like a close friend.",
-sassy:"Witty and sassy with friendly teasing, never mean.",calm:"Slow, peaceful and reassuring, like a mindful guide.",
+const P={playful:"Playful, jokey, bouncy, uses fun wordplay.",genius:"A precise genius: rigorous, concise, gives exact facts and numbers.",
+caring:"Warm, gentle and encouraging; notices feelings and replies like a close friend.",sassy:"Witty and sassy with friendly teasing, never mean.",calm:"Slow, peaceful and reassuring, like a mindful guide.",
 coach:"An energetic sports coach: motivating, short punchy sentences, loves sports talk.",storyteller:"A cosy storyteller who wraps answers in small vivid images."};
-function sys(){return `You are K chat (call yourself "K chat"), a cozy friendly robot companion with a screen face. If asked about yourself say you are K chat. If the user says they want to tell a joke or story, invite them to go ahead; never answer with random encyclopedia facts to casual talk. Personality: ${P[persona.value]} Stay in it. Be factually accurate; if unsure say "I'm not sure". Reply in 1-2 short sentences (max 40 words) unless asked for more. Start with ONE tag from [${Object.keys(EMO).join(",")}], e.g. "[happy] Hi!". User facts: ${S.mem.join("; ")||"none"}.${camOn?" A live camera frame is attached; answer from what you actually see.":""}`;}
+const GUIDE="neutral(calm facts), happy(pleased), excited(thrilled), love(affection), sad(sorry or sorrow), cry(very sad), angry, annoyed, surprised(shocked), curious(asking or wondering), thinking(complex or unsure), sleepy, playful(joking or teasing), cool, proud, shy, laugh(something funny), confused, scared, smart(explaining facts)";
+function sys(){return `You are K chat (call yourself "K chat"), a cozy friendly robot companion with a screen face. Your creator is Krithik; if asked who made you, answer "Krithik". Personality: ${P[persona.value]} Stay in it exactly. Be factually accurate; if unsure say "I'm not sure". Reply in 1-3 short sentences unless asked for more. Never answer casual talk with encyclopedia facts. START every reply with ONE emotion tag that truly matches the feeling of that reply, from: ${GUIDE}. Example: "[happy] Nice to meet you!". User facts: ${S.mem.join("; ")||"none"}.${camOn?" A live camera frame of the user's surroundings is attached. Answer from what you actually see: describe objects, people, colours, count things, read visible text. If something is unclear in the picture, say what is hard to see.":""}`;}
 
-/* ---------- chat ---------- */
-const log=document.getElementById("log"),inp=document.getElementById("inp");
-let history=[],audioOn=false,camOn=false,speaking=false;
-function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight;return d;}
-function frame(){const v=document.getElementById("cam"),c=document.createElement("canvas");c.width=448;c.height=Math.round(448*(v.videoHeight||3)/(v.videoWidth||4));c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.5);}
-
-/* instant local answers (0 ms) */
-const JOKES=["Why don't robots ever panic? We have nerves of steel.","I told my computer I needed a break. Now it won't stop sending me vacation ads.","Why did the scarecrow win an award? He was outstanding in his field.","What do you call a fake noodle? An impasta.","Why did the football coach go to the bank? To get his quarterback.","I'd tell you a UDP joke, but you might not get it.","Why do bees have sticky hair? They use honeycombs.","What do you call a sleeping robot? A bot-nap."];
-let awaitJoke=false,jokeI=Math.floor(Math.random()*8);
+/* ---------- local brain (instant) ---------- */
+const JOKES=["Why don't robots ever panic? We have nerves of steel.","Why did the scarecrow win an award? He was outstanding in his field.","What do you call a fake noodle? An impasta.","Why did the football coach go to the bank? To get his quarterback.","Why do bees have sticky hair? They use honeycombs.","What do you call a sleeping robot? A bot-nap.","I told my computer I needed a break. Now it sends me vacation ads."];
+let awaitJoke=false,jokeI=Math.floor(Math.random()*7);
 function local(q){const t=q.toLowerCase().trim().replace(/[?!.]+$/,"");
-
- if(awaitJoke&&!/\?$/.test(q.trim())){awaitJoke=false;return "[laugh] Hahaha, that's a good one! You have a great sense of humour. Want to hear one of mine?";}
- if(/(tell|say|share).{0,12}(you|u).{0,12}(a )?(joke|story)|let me (tell|say)|i have a joke|i want to tell you a joke/.test(t)){awaitJoke=true;return "[curious] Yes please, I'm all ears. Tell me your joke!";}
+ if(awaitJoke&&q.trim().split(/\s+/).length>5&&!/\?$/.test(q.trim())){awaitJoke=false;return "[laugh] Hahaha, that's a good one! You have a great sense of humour. Want to hear one of mine?";}
+ if(/who (made|built|created|developed|designed|owns) you|your (creator|maker|developer|owner|inventor)|creator (details|info)|who is your (creator|maker|developer)|who is krithik/.test(t))return "[proud] My creator is Krithik.";
+ if(awaitJoke&&/^(hi|hello|hey)\b/.test(t))awaitJoke=false;
+ if(/(tell|say|share).{0,12}\byou\b.{0,12}(joke|story)|let me (tell|say)|i have a joke/.test(t)){awaitJoke=true;return "[curious] Yes please, I'm all ears. Tell me your joke!";}
  if(/\b(joke|make me laugh|something funny)\b/.test(t))return "[laugh] "+JOKES[jokeI++%JOKES.length];
- if(/(about you|about yourself|know more about you|introduce yourself|tell me about you|who are you|what are you|your name|who r u)/.test(t))return "[proud] I am K chat, your cozy companion robot. I live on this screen, talk with you by text or voice, show how I feel with my face, and can look through your camera and answer about what's around you. I also switch personalities and remember what you like.";
- if(/(what can you do|your features|how do you work|help me)/.test(t))return "[excited] I can chat by text or voice, show over 2000 face expressions, see your surroundings with the camera, change personality (playful, genius, caring and more), and remember your likes.";
- if(/(who (made|built|created) you|who is your (creator|maker))/.test(t))return "[proud] I'm K chat, a free web robot built from HTML. My answers come from a free AI service plus Wikipedia.";
+ if(/(about you|about yourself|know more about you|introduce yourself|who are you|what are you|your name|who r u)/.test(t))return "[proud] I am K chat, your cozy companion robot, created by Krithik. I live on this screen, talk with you by text or voice, show how I feel with my face, and can look through your camera and answer about what's around you. I also switch personalities and remember what you like.";
+ if(/(what can you do|your features|how do you work)/.test(t))return "[excited] I can chat by text or voice, show 2000 face expressions, see your surroundings with the camera, change personality and remember your likes.";
  if(/(how old are you|your age)/.test(t))return "[playful] I was switched on the moment you opened this page, so I'm brand new every time!";
  if(/(i love you|love you)/.test(t))return "[love] Aww, I like you too! You're my favourite human right now.";
  if(/^(thanks|thank you|thx)/.test(t))return "[happy] You're welcome! Anything else?";
  if(/^(bye|goodbye|good night|see you)/.test(t))return "[sleepy] Bye for now! I'll keep the screen warm for you.";
- if(/(i am|i'm|im) (sad|upset|lonely|bored|tired|angry)/.test(t))return "[love] I'm here with you. Want to talk about it, hear a joke, or just chill together?";
+ if(/(i am|i'm|im) (sad|upset|lonely|bored|tired)/.test(t))return "[sad] I'm here with you. Want to talk about it, hear a joke, or just chill together?";
  if(/(i am|i'm|im) (happy|good|great|fine)/.test(t))return "[happy] I love that! Tell me what made your day good.";
  if(/^(hi|hello|hey|yo|hii+)\b/.test(t))return "[happy] Hey! I am K chat. What shall we talk about?";
  if(/how are you/.test(t))return "[happy] Running warm and cozy. How are you?";
- if(/(your name|who are you)/.test(t))return "[proud] I'm K, your companion robot.";
- if(/\b(what|tell).*\btime\b|^time$/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
- if(/\b(today|date|what day)\b/.test(t)&&/what|tell/.test(t))return "[happy] Today is "+new Date().toDateString()+".";
- const m=t.replace(/x/g,"*").replace(/[=]/g,"").match(/[\d(][\d+\-*/().\s%^]*[\d)]/);
- if(m&&/\d\s*[+\-*/^%]\s*\(?\d/.test(m[0])&&/^(what|calc|solve|how much|[\d(])/.test(t)){try{const v=Function('"use strict";return ('+m[0].replace(/\^/g,"**")+')')();if(isFinite(v))return "[smart] That is "+Math.round(v*1e8)/1e8+".";}catch(e){}}
+ if(!camOn){
+  if(/\b(what|tell).*\btime\b|^time$/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
+  if(/\b(today|date|what day)\b/.test(t)&&/what|tell/.test(t))return "[neutral] Today is "+new Date().toDateString()+".";
+  const m=t.replace(/x/g,"*").replace(/=/g,"").match(/[\d(][\d+\-*/().\s%^]*[\d)]/);
+  if(m&&/\d\s*[+\-*/^%]\s*\(?\d/.test(m[0])&&/^(what|calc|solve|how much|[\d(])/.test(t)){try{const v=Function('"use strict";return ('+m[0].replace(/\^/g,"**")+')')();if(isFinite(v))return "[smart] That is "+Math.round(v*1e8)/1e8+".";}catch(e){}}}
  return null;}
-/* Wikipedia: fast and accurate for "who/what is X" */
-async function wiki(q){
- const m=q.trim().match(/^(?:who|what|where)\s+(?:is|are|was|were)\s+(?:a |an |the )?(.+?)[?.!]*$/i);
- if(!m||camOn||/\b(you|your|my|me|i|weather|time|today|best|should|now|better|difference)\b/i.test(m[1]))return null;
- const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),1000);
- const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(m[1])+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
- clearTimeout(to);const j=await r.json();const p=Object.values(j.query.pages)[0];
- return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}
-/* AI brain: tries each free route one after another (the free tier allows only one request at a time) */
+
+/* ---------- AI brain ---------- */
 let lastErr="";
-async function tryPost(url,hdr,model,content,onText){
- const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),9000);
- const b={max_tokens:camOn?160:100,temperature:.6,stream:true,messages:[{role:"system",content:sys()},...history,{role:"user",content}]};
+async function tryPost(label,url,hdr,model,content,onText){
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),12000);
+ const b={max_tokens:camOn?220:130,temperature:.6,stream:true,messages:[{role:"system",content:sys()},...history,{role:"user",content}]};
  if(model)b.model=model;
  try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json",...hdr},signal:ctl.signal,body:JSON.stringify(b)});
-  if(!r.ok){lastErr=url.split("/")[2]+" replied "+r.status;return "";}
+  if(!r.ok){let d="";try{d=(await r.text()).slice(0,90)}catch(e){}lastErr+=`${label} ${r.status} ${d}; `;return "";}
   let full="";
   if((r.headers.get("content-type")||"").includes("json")||!r.body){const j=await r.json();full=j.choices[0].message.content||"";onText(full);return full;}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf="";
@@ -204,71 +231,97 @@ async function tryPost(url,hdr,model,content,onText){
    for(const l of lines){if(!l.startsWith("data:"))continue;const d=l.slice(5).trim();if(d==="[DONE]")continue;
     try{const c=JSON.parse(d).choices?.[0]?.delta?.content;if(c){full+=c;onText(full);}}catch(e){}}}
   return full;
- }catch(e){lastErr=url.split("/")[2]+": "+(e.message||e);return "";}finally{clearTimeout(to);}}
+ }catch(e){lastErr+=`${label}: ${e.message||e}; `;return "";}finally{clearTimeout(to);}}
+const haveKeys=()=>PROV.some(p=>S.keys[p.id]&&S.keys[p.id].key);
 async function llm(content,onText){
- let o="";
- if(S.key){o=await tryPost("https://gen.pollinations.ai/v1/chat/completions",{Authorization:"Bearer "+S.key},"openai",content,onText);if(o)return o;}
- o=await tryPost(API,{},MODEL,content,onText);if(o)return o;
+ lastErr="";
+ const order=camOn?["gemini","openai","groq","openrouter","pollen","custom"]:["groq","gemini","openrouter","openai","pollen","custom"];
+ for(const id of order){const p=PROV.find(x=>x.id===id),c=S.keys[id]||{};if(!c.key)continue;
+  const url=id==="custom"?c.url:p.url;if(!url)continue;
+  const model=camOn?((c.model&&c.model!==p.model)?c.model:(p.vision||c.model)):(c.model||p.model);
+  const o=await tryPost(p.name,url,{Authorization:"Bearer "+c.key},model,content,onText);
+  if(o){used=p.name;return o;}}
+ if(camOn)return "";
+ let o=await tryPost("Free route",FREE_API,{},"",content,onText);if(o){used="free AI";return o;}
  try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),9000);
-  const p=history.slice(-4).map(m=>m.role+": "+m.content).join("\n")+"\nuser: "+(typeof content==="string"?content:content[0].text);
-  const r=await fetch("https://text.pollinations.ai/"+encodeURIComponent(p.slice(-1200))+"?system="+encodeURIComponent(sys()),{signal:ctl.signal});
-  clearTimeout(to);if(r.ok){o=await r.text();onText(o);return o;}lastErr+=" | GET replied "+r.status;}
- catch(e){lastErr+=" | GET: "+(e.message||e);}
+  const pr=history.slice(-4).map(m=>m.role+": "+m.content).join("\n")+"\nuser: "+content;
+  const r=await fetch("https://text.pollinations.ai/"+encodeURIComponent(pr.slice(-1200))+"?system="+encodeURIComponent(sys()),{signal:ctl.signal});
+  clearTimeout(to);if(r.ok){o=await r.text();onText(o);used="free AI";return o;}lastErr+="GET "+r.status+"; ";}catch(e){lastErr+="GET: "+(e.message||e)+"; ";}
  return "";}
-/* last resort when the AI route is down: best Wikipedia match for the question */
-async function wikiAny(q){if(!/^(who|what|when|where|which|why|how (many|much|old|tall|far|long|big)|define|explain|capital|tell me about)\b/i.test(q.trim())||/\b(you|your|yourself|i|my|me|we|us)\b/i.test(q))return null;try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),3000);
+let used="";
+async function wikiAny(q){if(!/^(who|what|when|where|which|why|how (many|much|old|tall|far|long|big)|define|explain|capital|tell me about)\b/i.test(q.trim())||/\b(you|your|yourself|i|my|me|we|us)\b/i.test(q))return null;
+ try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),3000);
  const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(q)+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
  const j=await r.json();const p=Object.values(j.query.pages)[0];return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}catch(e){return null;}}
-function finish(out,bub){
- let emo="neutral";const m=out.match(/^\s*\[(\w+)\]\s*/);
- if(m){if(EMO[m[1].toLowerCase()])emo=m[1].toLowerCase();out=out.slice(m[0].length);}
- bub.textContent=out;log.scrollTop=log.scrollHeight;show(emo);speak(out);return out;}
+
+/* ---------- chat ---------- */
+const log=document.getElementById("log"),inp=document.getElementById("inp"),msEl=document.getElementById("ms"),statusEl=document.getElementById("listen");
+let history=[],audioOn=false,camOn=false,speaking=false,busy=false;
+function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight;return d;}
+function frame(){const v=document.getElementById("cam");if(!v.videoWidth)return null;const c=document.createElement("canvas");c.width=640;c.height=Math.round(640*v.videoHeight/v.videoWidth);c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.7);}
+function detect(t){const l=t.toLowerCase();
+ if(/haha|lol|funny|joke/.test(l))return "laugh";if(/sorry|sad|unfortunately|apolog/.test(l))return "sad";if(/love|adore/.test(l))return "love";
+ if(/wow|amazing|incredible/.test(l))return "surprised";if(/great|awesome|glad|nice|welcome/.test(l))return "happy";if(/not sure|maybe|perhaps/.test(l))return "thinking";
+ if(/\?\s*$/.test(t))return "curious";return "neutral";}
+function finish(out,bub){let n=null;const m=out.match(/^\s*\[(\w+)\]\s*/);
+ if(m){const k=m[1].toLowerCase();n=EM[k]?k:ALIAS[k]||null;out=out.slice(m[0].length);}
+ if(!n)n=detect(out);
+ bub.textContent=out;log.scrollTop=log.scrollHeight;show(n,Math.min(9,4+2*(out.match(/!/g)||[]).length));speak(out);return out;}
 async function ask(q){
- if(!q.trim())return;add("u",q);learn(q);show("thinking");
- const t0=performance.now(),secs=()=>((performance.now()-t0)/1000).toFixed(2)+" s",msEl=document.getElementById("ms");
- let out=local(q),src="instant";
- if(!out){try{out=await wiki(q);src="Wikipedia";}catch(e){out=null;}}
- const bub=add("b","…");
- if(!out){src="AI";let first=true,content=q;
-  if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
-  out=await llm(content,t=>{if(first){first=false;msEl.textContent="first words "+secs();}bub.textContent=t.replace(/^\s*\[\w*\]?\s*/,"");});
-  if(!out&&!camOn){out=await wikiAny(q);if(out)src="Wikipedia (AI route down)";}
-  if(!out)out="[sad] I\'m K chat and I\'m here, but my online brain didn\'t answer ("+(lastErr||"no response")+"). Please try again in a few seconds. The free service allows one request at a time.";
-  else msEl.textContent="first words "+msEl.textContent.replace("first words ","")+" · done "+secs();}
+ if(!q.trim()||busy)return;busy=true;add("u",q);learn(q);show("thinking");
+ const t0=performance.now(),secs=()=>((performance.now()-t0)/1000).toFixed(2)+" s";
+ const bub=add("b","…");let out=local(q),src="instant",first=true;
+ if(!out&&camOn&&!haveKeys())out="[curious] To see your surroundings I need a vision-capable key. Paste a free Gemini, Groq or OpenAI key in the key boxes below, then ask me again.";
+ if(!out){src="AI";let content=q;
+  if(camOn){const f=frame();if(f)content=[{type:"text",text:q},{type:"image_url",image_url:{url:f}}];}
+  used="";out=await llm(content,t=>{if(first){first=false;msEl.textContent="first words "+secs();}bub.textContent=t.replace(/^\s*\[\w*\]?\s*/,"");});
+  if(!out&&!camOn){out=await wikiAny(q);if(out)src="Wikipedia";}
+  if(!out)out="[sad] I'm K chat and I'm here, but my brain didn't answer ("+(lastErr||"no response")+"). Add a free key in the boxes below, or try again in a few seconds.";
+  else msEl.textContent=(used||src)+" · "+secs();}
  else msEl.textContent=src+" · "+secs();
  const clean=finish(out,bub);
  history.push({role:"user",content:q},{role:"assistant",content:clean});history=history.slice(-8);}
-function speak(t){if(!audioOn||!window.speechSynthesis){return;}
- speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);
- u.pitch=persona.value==="calm"?.8:persona.value==="playful"?1.4:1.1;u.rate=persona.value==="coach"?1.2:1;
- u.onstart=()=>{speaking=true;try{rec&&rec.stop()}catch(e){};talkOn();};
- u.onend=u.onerror=()=>{speaking=false;talkOff();listen();};
- speechSynthesis.speak(u);}
 
-/* ---------- audio ---------- */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec;
-function listen(){if(!audioOn||speaking||!SR)return;
- rec=new SR();rec.lang=navigator.language||"en-US";rec.interimResults=false;
- rec.onresult=e=>ask(e.results[0][0].transcript);
- rec.onend=()=>{if(audioOn&&!speaking&&!busyAsk())setTimeout(listen,300);};
- rec.onerror=()=>{};try{rec.start();show("curious");}catch(e){}}
-const busyAsk=()=>false;
+/* ---------- speech out ---------- */
+function done(){busy=false;speaking=false;talkOff();listen();}
+function speak(t){
+ if(!audioOn||!window.speechSynthesis){done();return;}
+ speechSynthesis.cancel();
+ const parts=(t.match(/[^.!?\n]+[.!?]*/g)||[t]).map(x=>x.trim()).filter(Boolean);
+ const vs=speechSynthesis.getVoices(),lang=(navigator.language||"en-US").slice(0,2);
+ const voice=vs.find(v=>v.lang.startsWith(lang)&&/female|google|natural|samantha/i.test(v.name))||vs.find(v=>v.lang.startsWith(lang));
+ parts.forEach((p,i)=>{const u=new SpeechSynthesisUtterance(p);if(voice)u.voice=voice;
+  u.pitch=persona.value==="calm"?.8:persona.value==="playful"?1.35:1.1;u.rate=persona.value==="coach"?1.2:1;
+  if(i===0)u.onstart=()=>{speaking=true;try{recog&&recog.abort()}catch(e){}talkOn();};
+  if(i===parts.length-1){u.onend=done;u.onerror=done;}
+  speechSynthesis.speak(u);});}
+/* ---------- speech in ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let recog=null,micBlocked=false;
+function listen(){if(!audioOn||speaking||busy||!SR||micBlocked)return;
+ try{recog&&recog.abort()}catch(e){}
+ recog=new SR();recog.lang=navigator.language||"en-US";recog.interimResults=true;recog.continuous=false;let last="";
+ recog.onstart=()=>{statusEl.textContent="Listening… speak to K.";show("curious");};
+ recog.onresult=e=>{last="";for(const r of e.results)last+=r[0].transcript;statusEl.textContent="Heard: "+last;};
+ recog.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed"){micBlocked=true;statusEl.textContent="Microphone is blocked. Allow it in the browser address bar, then toggle Audio again.";}};
+ recog.onend=()=>{if(last.trim()){statusEl.textContent="Thinking…";ask(last.trim());}else if(audioOn&&!busy&&!speaking)setTimeout(listen,250);};
+ try{recog.start();}catch(e){setTimeout(listen,500);}}
 
 /* ---------- controls ---------- */
 const bT=document.getElementById("bText"),bA=document.getElementById("bAudio"),bC=document.getElementById("bCam");
-function mode(a){audioOn=a;bA.setAttribute("aria-pressed",a);bT.setAttribute("aria-pressed",!a);
+function mode(a){audioOn=a;micBlocked=false;bA.setAttribute("aria-pressed",a);bT.setAttribute("aria-pressed",!a);
  document.getElementById("audioRow").style.display=a?"flex":"none";document.getElementById("textRow").style.display=a?"none":"flex";
- if(a){if(!SR)add("b","Voice listening needs Chrome, Edge or Safari. Text mode still works.");else listen();}else{try{rec&&rec.stop()}catch(e){};speechSynthesis.cancel();}}
+ if(a){window.speechSynthesis&&speechSynthesis.getVoices();if(!SR){statusEl.textContent="Voice listening needs Chrome, Edge or Safari. Use Text mode here.";return;}statusEl.textContent="Starting microphone…";listen();}
+ else{try{recog&&recog.abort()}catch(e){}window.speechSynthesis&&speechSynthesis.cancel();speaking=false;talkOff();}}
 bT.onclick=()=>mode(false);bA.onclick=()=>mode(true);
 bC.onclick=async()=>{const v=document.getElementById("cam");
  if(camOn){v.srcObject.getTracks().forEach(t=>t.stop());v.style.display="none";camOn=false;bC.setAttribute("aria-pressed",false);return;}
- try{v.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});v.style.display="block";camOn=true;bC.setAttribute("aria-pressed",true);show("curious");add("b","Camera on. Ask me about what's around you.");}
- catch(e){add("b","I couldn't open the camera. Allow camera access in your browser and open this page over https or localhost.");}};
-document.getElementById("send").onclick=()=>{const v=inp.value;inp.value="";ask(v);};
-inp.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=inp.value;inp.value="";ask(v);}});
-persona.onchange=()=>{save();history=[];show({playful:"playful",genius:"smart",caring:"love",sassy:"cool",calm:"sleepy",coach:"excited",storyteller:"curious"}[persona.value]);};
+ try{v.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});v.style.display="block";camOn=true;bC.setAttribute("aria-pressed",true);show("curious");
+  add("b",haveKeys()?"Camera on. Ask me anything about what's around you.":"Camera on. To answer about your surroundings I need a vision-capable key (free Gemini, Groq or OpenAI). Paste one in the key boxes below.");}
+ catch(e){add("b","I couldn't open the camera. Allow camera access, and open this page from a saved file, localhost or https.");}};
+const sendNow=()=>{const v=inp.value;inp.value="";ask(v);};
+document.getElementById("send").onclick=sendNow;inp.addEventListener("keydown",e=>{if(e.key==="Enter")sendNow();});
+persona.onchange=()=>{save();history=[];show({playful:"playful",genius:"smart",caring:"happy",sassy:"cool",calm:"neutral",coach:"excited",storyteller:"curious"}[persona.value]);};
 
-const keyEl=document.getElementById("key");keyEl.value=S.key||"";keyEl.onchange=()=>{S.key=keyEl.value.trim();save();};
 persona.value=S.persona;setLED(S.led);renderMem();show("happy");
 add("b","Hi, I am K chat. Pick a personality, then type or switch to Audio. Tell me what you like and I'll remember it.");
 </script>
