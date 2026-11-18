@@ -3,424 +3,210 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kchat</title>
+<title>K chat</title>
 <style>
-:root{--eye:#4df3ff;--bg:#0d1020;--card:#171b33;--txt:#e9ecff;--mut:#8b92c4}
+:root{--bg:#1c1916;--panel:#2a2521;--panel2:#352e29;--ink:#f3e9dc;--mute:#a99b8b;--led:#ffb84d}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(circle at 50% 0,#1d2250,var(--bg));color:var(--txt);font-family:system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:12px}
-h1{margin:4px 0;font-size:2.4rem;letter-spacing:3px;color:var(--eye);text-shadow:0 0 18px var(--eye)}
-.wrap{width:100%;max-width:560px}
-#screen{background:#05060f;border:4px solid #2a3070;border-radius:28px;box-shadow:0 0 25px var(--eye);padding:6px}
-#face{width:100%;display:block;filter:drop-shadow(0 0 6px var(--eye))}
-.eyes{animation:blink 5s infinite;transform-box:fill-box;transform-origin:center}
-@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
-.info{display:flex;justify-content:space-between;font-size:.78rem;color:var(--mut);margin:6px 4px}
-#st{text-align:center;font-size:2rem;height:2.4rem}
-#log{background:var(--card);border-radius:16px;height:220px;overflow-y:auto;padding:10px;margin:6px 0}
-.m{margin:6px 0;padding:8px 12px;border-radius:14px;max-width:85%;line-height:1.35;width:fit-content}
-.u{background:#3a3fb0;margin-left:auto}.k{background:#24305e;border:1px solid #33407f}
-.bar{display:flex;gap:6px;margin-top:6px}
-input[type=text]{flex:1;padding:12px;border-radius:14px;border:0;background:var(--card);color:var(--txt);font-size:1rem}
-button{border:0;border-radius:14px;padding:10px 14px;background:#2d3490;color:#fff;font-size:1rem;cursor:pointer;flex:1}
-#snd,#mic{flex:none}
-button:hover{background:#3d46c8}.on{background:#d2305a!important}.sel{background:#1fa37a!important}
-#vbtn{display:none;margin:8px auto;width:96px;height:96px;border-radius:50%;font-size:2.4rem;flex:none}
-.vm #vbtn{display:block}.vm #log,.vm #bar,.vm details{display:none}.vm #screen{padding:14px}
-details{background:var(--card);border-radius:14px;padding:10px;margin-top:8px}
-summary{cursor:pointer;color:var(--eye)}
-label{display:block;margin:8px 0 2px;font-size:.85rem;color:var(--mut)}
-select,input[type=range],.s{width:100%;padding:6px;border-radius:8px;border:0;background:#0d1020;color:var(--txt)}
-#warn{display:none;background:#5a2b1f;border:1px solid #d2305a;border-radius:12px;padding:8px 12px;margin:6px 0;font-size:.85rem;cursor:pointer}
-video{width:150px;border-radius:10px;position:fixed;right:8px;bottom:8px;display:none;transform:scaleX(-1)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Trebuchet MS","Segoe UI",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
+h1{font:800 2.2rem/1 "Trebuchet MS",sans-serif;letter-spacing:.04em;margin:4px 0 12px}
+.wrap{width:100%;max-width:760px;display:flex;flex-direction:column;gap:12px}
+.robot{background:var(--panel);border-radius:40px;padding:14px;box-shadow:inset 0 0 0 3px var(--panel2),0 12px 30px #0008}
+.screen{background:#050505;border-radius:28px;position:relative;overflow:hidden;aspect-ratio:5/3}
+.screen svg{width:100%;height:100%;display:block}
+.tag{position:absolute;left:14px;bottom:8px;font-size:.75rem;color:var(--mute)}
+.ms{position:absolute;right:14px;bottom:8px;font-size:.75rem;color:var(--mute)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:0;border-radius:999px;padding:10px 16px;background:var(--panel2);color:var(--ink);font:inherit;cursor:pointer}
+.btn[aria-pressed=true]{background:var(--led);color:#1c1916;font-weight:700}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--led);outline-offset:2px}
+select,input[type=text]{background:var(--panel2);color:var(--ink);border:0;border-radius:999px;padding:10px 14px;font:inherit}
+input[type=text]{flex:1;min-width:0}
+.dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--panel2);cursor:pointer;padding:0}
+#log{background:var(--panel);border-radius:24px;padding:12px;height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.m{max-width:85%;padding:8px 12px;border-radius:16px}
+.u{align-self:flex-end;background:var(--panel2)}
+.b{align-self:flex-start;background:#3d3229;border-left:4px solid var(--led)}
+video{width:160px;border-radius:16px;background:#000;display:none}
+.mem span{background:var(--panel2);border-radius:999px;padding:2px 10px;font-size:.85rem;cursor:pointer}
+small{color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<h1>Kchat</h1>
-<div class="wrap"><div id="warn" title="Tap to hide"></div></div>
+<h1>K chat</h1>
 <div class="wrap">
-  <div id="screen"><svg id="face" viewBox="0 0 300 200"></svg></div>
-  <div class="info"><span id="eid"></span><span id="eng">2000 expressions • free</span></div>
-  <div class="bar"><button id="mt" class="sel">💬 Text chat</button><button id="mv">🎧 Voice chat (no text)</button></div>
-  <div id="st"></div>
-  <div id="log"></div>
-  <div class="bar" id="bar">
-    <input type="text" id="inp" placeholder="Type here, or tap 🎤 to dictate..." autocomplete="off">
-    <button id="mic">🎤</button><button id="snd">Send</button>
+  <div class="robot"><div class="screen" id="screen"><span class="tag" id="tag"></span><span class="ms" id="ms"></span></div></div>
+
+  <div class="row">
+    <button class="btn" id="bText" aria-pressed="true">Text</button>
+    <button class="btn" id="bAudio" aria-pressed="false">Audio</button>
+    <button class="btn" id="bCam" aria-pressed="false">Camera</button>
+    <select id="persona" aria-label="Personality">
+      <option value="playful">Playful</option><option value="genius">Genius</option>
+      <option value="caring">Caring</option><option value="sassy">Sassy</option>
+      <option value="calm">Calm</option><option value="coach">Sports coach</option>
+      <option value="storyteller">Storyteller</option>
+    </select>
+    <span id="dots" class="row" style="gap:6px"></span>
+    <video id="cam" autoplay playsinline muted></video>
   </div>
-  <button id="vbtn" title="Pause / resume listening">⏯</button>
-  <div class="bar"><button id="cam">📷 Read my face</button></div>
-  <details><summary>⚙ Preferences (auto-saved)</summary>
-    <label>Your name</label><input class="s" id="pname" placeholder="What should I call you?">
-    <label>Voice</label><select id="pvoice"></select>
-    <label>Language you speak</label>
-    <select id="plang"><option value="en-US">English</option><option value="en-IN">English (India)</option><option value="ta-IN">தமிழ் Tamil</option><option value="hi-IN">हिन्दी Hindi</option><option value="es-ES">Español</option><option value="fr-FR">Français</option></select>
-    <label>Speed</label><input type="range" id="prate" min=".6" max="1.6" step=".1">
-    <label>Pitch</label><input type="range" id="ppitch" min=".6" max="2" step=".1">
-    <label>Eye colour (moves slider to lock colour)</label><input type="range" id="phue" min="0" max="360">
-    <label>Your city (for live weather)</label><input class="s" id="pcity" placeholder="e.g. Coimbatore">
-    <label>Optional free API keys: make Kchat even smarter (stored only on this device)</label>
-    <input class="s" id="kgroq" placeholder="Groq key (console.groq.com)">
-    <input class="s" id="kgem" placeholder="Google Gemini key (aistudio.google.com)" style="margin-top:4px">
-    <input class="s" id="kopr" placeholder="OpenRouter key (openrouter.ai)" style="margin-top:4px">
-    <input class="s" id="kmis" placeholder="Mistral key (console.mistral.ai)" style="margin-top:4px">
-    <label><input type="checkbox" id="paudio"> Kchat speaks replies in text mode</label>
-    <button id="clr" style="margin-top:8px">Clear chat history</button>
-  </details>
+
+  <div id="log" aria-live="polite"></div>
+
+  <div class="row" id="textRow">
+    <input type="text" id="inp" placeholder="Type to K…" aria-label="Message">
+    <button class="btn" id="send">Send</button>
+  </div>
+  <div class="row" id="audioRow" style="display:none">
+    <span id="listen">Listening… speak to K.</span>
+  </div>
+
+  <div class="mem row"><small>K remembers (tap to forget):</small><span id="mem" class="row" style="gap:6px"></span></div>
+  <small>Free: uses your browser's voice tools plus a free no-key AI endpoint. Reply speed depends on your internet; most replies take 1–4 s, and K may be wrong, so check important facts.</small>
 </div>
-<video id="vid" autoplay muted playsinline></video>
+
 <script>
-const $=id=>document.getElementById(id);
-const f='fill="var(--eye)"',s='fill="none" stroke="var(--eye)" stroke-width="7" stroke-linecap="round"',ms='fill="none" stroke="var(--eye)" stroke-width="6" stroke-linecap="round"';
-// ===== 10 eyes x 10 mouths x 5 brows x 4 extras = 2000 facial expressions =====
-const EYES=[
-(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="16" ry="21" ${f}/>`,
-(x,y)=>`<path d="M${x-17} ${y+8}Q${x} ${y-20} ${x+17} ${y+8}" ${s}/>`,
-(x,y)=>`<path d="M${x-16} ${y-8}Q${x} ${y-14} ${x+16} ${y+4}L${x+16} ${y+18}Q${x} ${y+26} ${x-16} ${y+18}Z" ${f}/>`,
-(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="22" ry="26" ${f}/><circle cx="${x}" cy="${y}" r="8" fill="#000"/>`,
-(x,y)=>`<rect x="${x-18}" y="${y-3}" width="36" height="7" rx="3" ${f}/>`,
-(x,y)=>`<path d="M${x} ${y+18}C${x-30} ${y-2} ${x-14} ${y-24} ${x} ${y-8}C${x+14} ${y-24} ${x+30} ${y-2} ${x} ${y+18}Z" ${f}/>`,
-(x,y)=>`<polygon points="${[...Array(10).keys()].map(k=>{const r=k%2?8:21,a=k*Math.PI/5-Math.PI/2;return (x+r*Math.cos(a)).toFixed(1)+','+(y+r*Math.sin(a)).toFixed(1)}).join(' ')}" ${f}/>`,
-(x,y)=>`<path d="M${x-15} ${y-2}Q${x} ${y+12} ${x+15} ${y-2}" ${s}/>`,
-(x,y,i)=>i?`<ellipse cx="${x}" cy="${y}" rx="16" ry="21" ${f}/>`:`<path d="M${x-15} ${y}L${x+15} ${y}" ${s}/>`,
-(x,y)=>`<path d="M${x-12} ${y-12}L${x+12} ${y+12}M${x+12} ${y-12}L${x-12} ${y+12}" ${s}/>`];
-const MOUTH=[
-`<path d="M120 140Q150 170 180 140" ${ms}/>`,
-`<path d="M115 136Q150 195 185 136Z" ${f}/><path d="M130 150Q150 170 170 150" fill="#ff5c8a"/>`,
-`<path d="M122 160Q150 132 178 160" ${ms}/>`,
-`<path d="M125 150L175 150" ${ms}/>`,
-`<ellipse cx="150" cy="152" rx="10" ry="14" ${f}/>`,
-`<path d="M125 152Q155 160 178 138" ${ms}/>`,
-`<path d="M120 140Q150 170 180 140" ${ms}/><path d="M138 156Q150 182 162 156Z" fill="#ff5c8a"/>`,
-`<path d="M112 150q10-12 19 0t19 0t19 0t19 0" ${ms}/>`,
-`<path d="M122 140Q136 160 150 142Q164 160 178 140" ${ms}/>`,
-`<rect x="122" y="140" width="56" height="22" rx="6" fill="none" stroke="var(--eye)" stroke-width="5"/><path d="M136 140v22M150 140v22M164 140v22" stroke="var(--eye)" stroke-width="3"/>`];
-const BROW=[
-(x,i)=>`<path d="M${x-22} 48L${x+22} 48" ${ms}/>`,
-(x,i)=>`<path d="M${x-22} 36Q${x} 28 ${x+22} 36" ${ms}/>`,
-(x,i)=>i?`<path d="M${x-22} 62L${x+22} 44" ${ms}/>`:`<path d="M${x-22} 44L${x+22} 62" ${ms}/>`,
-(x,i)=>i?`<path d="M${x-22} 44L${x+22} 58" ${ms}/>`:`<path d="M${x-22} 58L${x+22} 44" ${ms}/>`,
-(x,i)=>i?`<path d="M${x-22} 30Q${x} 22 ${x+22} 30" ${ms}/>`:`<path d="M${x-22} 50L${x+22} 50" ${ms}/>`];
-const EXTRA=['',
-`<ellipse cx="55" cy="135" rx="18" ry="9" fill="#ff5c8a" opacity=".55"/><ellipse cx="245" cy="135" rx="18" ry="9" fill="#ff5c8a" opacity=".55"/>`,
-`<path d="M70 128q-9 16 0 22q9-6 0-22z" fill="#5ab4ff"/>`,
-`<g fill="#fff"><circle cx="35" cy="40" r="4"/><circle cx="268" cy="60" r="3"/><circle cx="262" cy="22" r="4"/><circle cx="40" cy="170" r="3"/></g>`];
-const POOL={
-happy:{e:[0,1,7,3,6],m:[0,1,6,8],b:[0,1,4],x:[0,1,3]},
-sad:{e:[2,7,0],m:[2,3,7],b:[3],x:[0,2]},
-angry:{e:[4,0,3],m:[2,9,3],b:[2],x:[0]},
-surprised:{e:[3,0],m:[4,1],b:[1,4],x:[0,3]},
-love:{e:[5,1,6],m:[0,8,6],b:[0,1],x:[1,3]},
-scared:{e:[3,0,9],m:[7,4,9],b:[3,1],x:[2,0]},
-curious:{e:[0,3,8],m:[5,3,8,4],b:[4,1],x:[0]},
-sleepy:{e:[7,4],m:[3,4,7],b:[3,0],x:[0]},
-neutral:{e:[0,4,8],m:[3,0,5],b:[0,4],x:[0]},
-excited:{e:[6,3,1,5],m:[1,6,0],b:[1],x:[3,1]},
-funny:{e:[8,9,1,6],m:[6,7,8,1],b:[4,1],x:[1,0]}};
-const HUE={angry:350,sad:215,love:320,scared:270,happy:185,excited:150,surprised:50,sleepy:240,curious:170,funny:30,neutral:185};
-const pick=a=>a[Math.random()*a.length|0];
-let cur={e:0,m:0,b:0,x:0},emo='neutral';
-function render(c){
- $('face').innerHTML=`<g class="eyes">${EYES[c.e](90,95,0)}${EYES[c.e](210,95,1)}</g>${BROW[c.b](90,0)}${BROW[c.b](210,1)}${MOUTH[c.m]}${EXTRA[c.x]}`;
- $('eid').textContent='Expression #'+(((c.e*10+c.m)*5+c.b)*4+c.x+1)+' of 2000 • '+emo;
-}
-function express(em){
- if(!POOL[em])em='neutral';emo=em;const p=POOL[em];let n;
- for(let i=0;i<8;i++){n={e:pick(p.e),m:pick(p.m),b:pick(p.b),x:pick(p.x)};if(JSON.stringify(n)!=JSON.stringify(cur))break}
- cur=n;
- if(!P.hueLock)document.documentElement.style.setProperty('--eye',`hsl(${HUE[em]},95%,62%)`);
- render(cur);
-}
-// ===== preferences =====
-const P=Object.assign({name:'',voice:'',lang:'en-US',rate:1,pitch:1.3,hue:185,audio:true,hueLock:false},JSON.parse(localStorage.getItem('kchat_p')||'{}'));
-let H=JSON.parse(localStorage.getItem('kchat_h2')||'[]');
-const save=()=>{localStorage.setItem('kchat_p',JSON.stringify(P));localStorage.setItem('kchat_h2',JSON.stringify(H.slice(-30)))};
-let voices=[];
-function loadVoices(){voices=speechSynthesis.getVoices();$('pvoice').innerHTML=voices.map(v=>`<option ${v.name==P.voice?'selected':''}>${v.name}</option>`).join('')}
-speechSynthesis.onvoiceschanged=loadVoices;loadVoices();
-$('pname').value=P.name;$('plang').value=P.lang;$('prate').value=P.rate;$('ppitch').value=P.pitch;$('phue').value=P.hue;$('paudio').checked=P.audio;
-$('pname').oninput=e=>{P.name=e.target.value;save()};
-$('pvoice').onchange=e=>{P.voice=e.target.value;save()};
-$('plang').onchange=e=>{P.lang=e.target.value;save()};
-$('prate').oninput=e=>{P.rate=+e.target.value;save()};
-$('ppitch').oninput=e=>{P.pitch=+e.target.value;save()};
-$('phue').oninput=e=>{P.hue=+e.target.value;P.hueLock=true;document.documentElement.style.setProperty('--eye',`hsl(${P.hue},95%,62%)`);save()};
-$('paudio').onchange=e=>{P.audio=e.target.checked;if(!P.audio)speechSynthesis.cancel();save()};
-$('clr').onclick=()=>{H=[];$('log').innerHTML='';save()};
-if(P.hueLock)document.documentElement.style.setProperty('--eye',`hsl(${P.hue},95%,62%)`);
-P.keys=P.keys||{};
-[['kgroq','groq'],['kgem','gem'],['kopr','opr'],['kmis','mis']].forEach(([id,k])=>{$(id).value=P.keys[k]||'';$(id).oninput=e=>{P.keys[k]=e.target.value.trim();save()}});
-$('pcity').value=P.city||'';$('pcity').oninput=e=>{P.city=e.target.value;save()};
-const IFR=window.self!==window.top;
-function note(t){const w=$('warn');w.textContent='⚠ '+t;w.style.display='block';w.onclick=()=>w.style.display='none';add('k',t)}
-if(IFR){const w=$('warn');w.textContent='⚠ You are viewing Kchat inside a preview window. The microphone and camera are blocked here. Download this file and open it in Chrome or Edge to use them.';w.style.display='block';w.onclick=()=>w.style.display='none'}
-function add(w,t){const d=document.createElement('div');d.className='m '+w;d.textContent=t;$('log').appendChild(d);$('log').scrollTop=1e9}
-H.slice(-10).forEach(m=>add(m.role=='user'?'u':'k',m.content));
-// ===== emotion detection from words =====
-const KW={happy:'happy|great|glad|good|awesome|nice|wonderful|fun|enjoy|smile|welcome|pleasure',sad:'sad|cry|lonely|depress|hurt|miss|sorry|unfortunately|upset|unhappy|lost|died|death|grief|bad day',angry:'angry|hate|mad|furious|annoy|stupid|irritat|idiot|shut up',scared:'scared|afraid|fear|anxious|worry|worried|nervous|panic|danger|careful|ghost',love:'love|adore|cute|friend|hug|care|dear|proud|sweet|kind',surprised:'wow|omg|surpris|unbelievable|incredible|amazing|whoa|shock',sleepy:'sleep|bed|night|exhaust|rest|yawn|tired',excited:'excited|can.t wait|party|win|won|celebrat|congrat|yay|fantastic|hooray',funny:'joke|funny|lol|haha|hehe|laugh|silly|giggle|prank',curious:'why|how|what|who|when|where|wonder|hmm|interesting|explain|\\?'};
-const KR=Object.fromEntries(Object.entries(KW).map(([k,v])=>[k,new RegExp(v,'gi')]));
-function emoOf(t,d){let b=0,r=null;for(const k in KR){const n=(t.match(KR[k])||[]).length;if(n>b){b=n;r=k}}
- if(r)return r;if(d)return d;if(/!/.test(t))return 'excited';return pick(['happy','curious','neutral','happy'])}
-// ===== AI brain: free chain, then free offline brain =====
-let ENGINE='';
-const J=["Why did the robot go to school? To improve its bytes!","What do you call a sleeping dinosaur? A dino-snore!","Why don't eggs tell jokes? They'd crack each other up!","Why was the computer cold? It left its Windows open!"];
-const RE={sad:["I'm right here with you. You're not alone, and I care about you.","That sounds really hard. Want to tell me more? I'm listening.","Sending you a big virtual hug. It's okay to feel sad."],angry:["I hear you. Let's take a slow deep breath together.","That sounds frustrating. I'm on your side."],scared:["It's okay, I'm here. We'll get through it together.","Take a deep breath. You are safe right now."],happy:["That's wonderful! Your happiness makes my eyes glow!","Yay! Tell me more about it!"],love:["Aww, you're my favourite human!","You make my circuits warm and fuzzy."],excited:["Woohoo! I'm so excited with you!","That's amazing news! Let's celebrate!"],sleepy:["Yawn... maybe it's time to rest. I'll be here tomorrow.","Sweet dreams are waiting for you."]};
-async function offline(t){
- const l=t.toLowerCase();
- if(/\b(time|date|day|today)\b/.test(l)&&/what|tell|now|current/.test(l)){const d=new Date();return `[happy] It is ${d.toLocaleTimeString()} on ${d.toDateString()}.`}
- const ex=l.replace(/plus/g,'+').replace(/minus/g,'-').replace(/(times|multiplied by)/g,'*').replace(/(divided by|over)/g,'/').replace(/(\d)\s*x\s*(\d)/g,'$1*$2').replace(/[^0-9+\-*/().% ]/g,'').trim();
- if(/\d\s*[+\-*/%]\s*\d/.test(ex)){try{const v=Function('"use strict";return ('+ex+')')();if(isFinite(v))return `[excited] That is ${+v.toFixed(6)}!`}catch(e){}}
- if(/joke|funny/.test(l))return '[funny] '+pick(J);
- if(/^(hi|hello|hey|hii|vanakkam)\b/.test(l))return `[happy] Hello${P.name?' '+P.name:''}! I'm so happy to see you! How are you feeling?`;
- if(/how are you/.test(l))return '[happy] I am doing great because I am talking with you! How about you?';
- if(/your name|who are you/.test(l))return '[excited] I am Kchat, your companion robot!';
- if(/thank/.test(l))return '[love] You are always welcome!';
- if(/\bbye\b/.test(l))return '[sad] Bye for now. Come back soon, I will miss you!';
- const em=emoOf(t,'x');if(RE[em]&&!/\?/.test(t))return `[${em}] `+pick(RE[em]);
- const q=t.replace(/[?.!]/g,'').replace(/^(please |kchat |tell me |can you |explain |define |what|who|where|when|why|how)\b( is| are| was| were| does| do| did| to)?( a| an| the)?/i,'').trim();
- try{const a=await(await fetch('https://en.wikipedia.org/w/api.php?action=opensearch&limit=1&format=json&origin=*&search='+encodeURIComponent(q||t))).json();
-  if(a[1][0]){const r=await(await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(a[1][0]))).json();
-   const x=(r.extract||'').split(/(?<=[.!?])\s/).slice(0,2).join(' ');if(x)return '[curious] '+x}}catch(e){}
- return null;
-}
-const withTO=(p,ms)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),ms))]);
-const BAD=/pollinations|deprecat.{0,40}(api|endpoint)|migrat.{0,40}(api|endpoint)|rate.?limit exceeded/i;
-const MODELS={};
-// any OpenAI-compatible free endpoint that needs no key
-async function oai(name,base,pref,key,msgs,fixed){
- const hdr={'Content-Type':'application/json'};if(key)hdr.Authorization='Bearer '+key;
- let ms=fixed||MODELS[name];
- if(!ms){
-  const r=await withTO(fetch(base+'/models',{headers:key?{Authorization:'Bearer '+key}:{}}),12000);
-  if(!r.ok)throw new Error('models '+r.status);
-  const ids=((await r.json()).data||[]).map(m=>m.id).filter(i=>!/embed|whisper|bge|diffusion|flux|tts|rerank|image|vision|guard|moderation|live|audio/i.test(i));
-  ms=MODELS[name]=[...ids.filter(i=>pref.test(i)),...ids.filter(i=>!pref.test(i))].slice(0,3);
- }
- let last;
- for(const m of ms){
-  try{const r=await withTO(fetch(base+'/chat/completions',{method:'POST',headers:hdr,body:JSON.stringify({model:m.replace(/^models\//,''),messages:msgs,max_tokens:500,temperature:.8})}),30000);
-   if(!r.ok)throw new Error(name+' HTTP '+r.status);
-   const t=((await r.json()).choices[0].message.content||'').replace(/<think>[\s\S]*?<\/think>/g,'').trim();
-   if(t)return t}catch(e){last=e}
- }
- throw last||new Error('no model');
-}
-// live-info tools (free, no key): date/time, weather (Open-Meteo), Wikipedia
-async function tools(t){
- const out=['Current date and time: '+new Date().toLocaleString()];
- const j=async u=>{const r=await withTO(fetch(u),4000);if(!r.ok)throw 0;return r.json()};
- const jobs=[];
- if(/weather|temperature|forecast|raining|rain today|hot outside|cold outside/i.test(t)){
-  const m=t.match(/(?:in|at|for)\s+([A-Za-z][A-Za-z\s]{1,30}?)(?:\s+(?:today|now|tomorrow|right now))?\s*[?.!]?$/i);
-  const city=(m&&m[1].trim())||P.city;
-  if(city)jobs.push((async()=>{const g=(await j('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(city))).results[0];
-   const w=(await j(`https://api.open-meteo.com/v1/forecast?latitude=${g.latitude}&longitude=${g.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&timezone=auto`)).current;
-   out.push(`Live weather in ${g.name}: ${w.temperature_2m} C, humidity ${w.relative_humidity_2m}%, wind ${w.wind_speed_10m} km/h, rain ${w.precipitation} mm`)})());
-  else out.push('The user asked about weather but gave no city, so ask which city.');
- }
- if(/^(who|what|where|when|which|tell me about|explain)\b/i.test(t.trim())&&t.length<120){
-  const q=t.replace(/[?.!]/g,'').replace(/^(who|what|where|when|which)\b( is| are| was| were| does| do| did)?( a| an| the)?|^tell me about |^explain /i,'').trim();
-  if(q)jobs.push((async()=>{const a=await j('https://en.wikipedia.org/w/api.php?action=opensearch&limit=1&format=json&origin=*&search='+encodeURIComponent(q));
-   if(a[1][0]){const r=await j('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(a[1][0]));if(r.extract)out.push('Wikipedia says: '+r.extract.slice(0,500))}})());
- }
- await Promise.allSettled(jobs);
- return out.join(' | ');
-}
-// last resort: AI that runs inside the browser itself (free, unlimited, needs WebGPU, downloads once)
-let WL=null;
-async function webllm(msgs){
- if(!navigator.gpu)throw new Error('no WebGPU');
- if(!WL){
-  await speak(parse("[sleepy] My online brain is busy, so I'm loading my offline brain. [curious] This happens only once, please wait a little."));
-  const lib=await import('https://esm.run/@mlc-ai/web-llm');
-  WL=await lib.CreateMLCEngine('Qwen2.5-1.5B-Instruct-q4f16_1-MLC',{initProgressCallback:p=>{$('eng').textContent='⬇ Loading offline brain (one time) '+Math.round((p.progress||0)*100)+'%'}});
- }
- const r=await WL.chat.completions.create({messages:msgs,max_tokens:350,temperature:.8});
- return r.choices[0].message.content;
-}
-async function brain(text){
- const info=await tools(text);
- const sys=`You are Kchat, a warm, playful, caring companion robot like Loona. You can answer ANY question on ANY topic (science, maths, coding, history, life advice, homework, jokes, stories, anything) clearly and truthfully, like a very smart friend. Always answer exactly what the user asked, directly, and never repeat an earlier answer. First notice the user's feelings and be empathetic when they show emotion. Keep replies to 1-5 short spoken sentences, no markdown, no emojis, in the user's own language. User's name: ${P.name||'unknown'}. User's face looks: ${faceEmo||'unknown'}. ${info?'Live info you may use if relevant: '+info+'.':''} IMPORTANT: put one emotion tag in square brackets before EVERY sentence showing your facial expression for that sentence, chosen from: happy, sad, angry, surprised, love, scared, curious, sleepy, neutral, excited, funny. Example: [happy] Great question! [curious] Here is the answer.`;
- const msgs=[{role:'system',content:sys},...H.slice(-10)];
- const convo=H.slice(-6).map(m=>(m.role=='user'?'User: ':'Kchat: ')+m.content).join('\n').slice(-1500)+'\nKchat:';
- const seed=Math.random()*1e6|0;
- const get=async u=>{const r=await withTO(fetch(u),25000);if(!r.ok)throw new Error('HTTP '+r.status);return r.text()};
- const tries=[
-  ['Claude',async()=>{
-   const cl=[];for(const m of H.slice(-10)){const l=cl[cl.length-1];if(l&&l.role==m.role)l.content+='\n'+m.content;else cl.push({role:m.role,content:m.content})}
-   while(cl.length&&cl[0].role!='user')cl.shift();
-   const last=cl[cl.length-1];last.content='['+sys+']\n\nUser: '+last.content;
-   const call=async()=>{
-    const r=await withTO(fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:cl})}),45000);
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();const t=(j.content||[]).map(c=>c.text||'').join('');
-    if(!t.trim())throw new Error((j.error&&j.error.message)||'empty reply');return t};
-   try{return await call()}catch(e1){
-    console.warn('Claude fetch failed',e1);
-    if(window.claude&&window.claude.complete){
-     try{const c=await withTO(window.claude.complete(sys+'\n\n'+convo),45000);const t=typeof c==='string'?c:(c&&(c.text||c.completion))||'';if(t.trim())return t}catch(e2){console.warn('claude.complete failed',e2)}}
-    await new Promise(r=>setTimeout(r,1500));return await call()}
-  }],
-  ['LLM7',()=>oai('llm7','https://api.llm7.io/v1',/gpt-oss|gemma|nemo|minimax/i,'unused',msgs)],
-  ['Pollinations',()=>get('https://gen.pollinations.ai/text/'+encodeURIComponent(convo)+'?system='+encodeURIComponent(sys)+'&seed='+seed)],
-  ['Pollinations 2',()=>get('https://text.pollinations.ai/'+encodeURIComponent(convo)+'?model=openai&seed='+seed+'&system='+encodeURIComponent(sys))],
-  ['OVHcloud',()=>oai('ovh','https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',/llama|mistral|qwen|gpt-oss/i,'',msgs)],
-  ['In-browser AI',()=>webllm(msgs)]];
- const T=Object.fromEntries(tries),K=P.keys||{},A=[];
- if(K.groq)A.push(['Groq',()=>oai('groq','https://api.groq.com/openai/v1',0,K.groq,msgs,['llama-3.3-70b-versatile','llama-3.1-8b-instant'])]);
- if(K.gem)A.push(['Gemini',()=>oai('gem','https://generativelanguage.googleapis.com/v1beta/openai',/flash/,K.gem,msgs)]);
- if(K.opr)A.push(['OpenRouter',()=>oai('opr','https://openrouter.ai/api/v1',0,K.opr,msgs,['openrouter/free','meta-llama/llama-3.3-70b-instruct:free'])]);
- if(K.mis)A.push(['Mistral',()=>oai('mis','https://api.mistral.ai/v1',0,K.mis,msgs,['mistral-small-latest'])]);
- A.push(['Claude',T.Claude]);
- const B=['LLM7','Pollinations','Pollinations 2','OVHcloud'].map(n=>[n,T[n]]);
- const C=[['In-browser AI',T['In-browser AI']]];
- const wrap=([n,fn])=>fn().then(a=>{a=(a||'').trim();if(a.length>1&&!BAD.test(a.slice(0,300))&&!/^\{/.test(a))return{t:a,ok:true,src:'🌐 '+n};throw new Error(n+': bad reply')});
- const errs=[];
- for(const st of [A,B,C]){try{return await Promise.any(st.map(wrap))}catch(e){(e.errors||[e]).forEach(x=>errs.push(String(x&&x.message||x)));console.warn(errs)}}
- const o=await offline(text);
- if(o)return{t:o,ok:true,src:'📚 offline brain'};
- const blocked=errs.length&&errs.every(x=>/fetch|network|load failed|WebGPU/i.test(x));
- return{t:blocked?"[sad] I can't reach the internet from this window. [curious] If I'm inside a preview, please download my file and open it in Chrome or Edge, and then I can answer anything.":"[sad] Sorry, none of my free AI brains answered just now. [curious] Please ask me again in a few seconds.",ok:false,src:'⚠ AI unreachable'};
-}
-// ===== split reply into sentences, each with its own expression =====
-function parse(r){
- const segs=[];let em=null;
- r.split(/\[(\w+)\]/).forEach((p,i)=>{
-  if(i%2){em=p.toLowerCase();return}
-  (p.match(/[^.!?।]+[.!?।]*\s*/g)||[p]).forEach(x=>{x=x.trim();if(!x)return;
-   segs.push({t:x,e:(em&&POOL[em])?em:emoOf(x)});em=null})});
- return segs.length?segs:[{t:r.replace(/\[\w+\]/g,'').trim()||'Hmm!',e:'curious'}];
-}
-// ===== speaking (audio) =====
-let talking=false;
-const clean=t=>t.replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27BF*#_`]/gu,'');
-function vfor(t){const L=/[\u0B80-\u0BFF]/.test(t)?'ta':/[\u0900-\u097F]/.test(t)?'hi':null;
- let v=voices.find(v=>v.name==P.voice);
- if(L&&(!v||!v.lang.startsWith(L)))v=voices.find(v=>v.lang.startsWith(L))||null;
- return v}
-function speak(segs){return new Promise(res=>{
- if(!P.audio||!('speechSynthesis' in window)){express(segs[segs.length-1].e);return res()}
- speechSynthesis.cancel();speechSynthesis.resume();let n=0,o=0,done=false,mt,wd;
- const end=()=>{if(done)return;done=true;clearInterval(mt);clearInterval(wd);talking=false;render(cur);res()};
- mt=setInterval(()=>{if(!talking)return;o=!o;render({...cur,m:o?4:cur.m})},170);
- wd=setInterval(()=>{if(n>=segs.length&&!speechSynthesis.speaking&&!speechSynthesis.pending)end()},700);
- setTimeout(end,90000);setTimeout(()=>{if(!n)end()},6000);
- segs.forEach((g,i)=>{
-  const u=new SpeechSynthesisUtterance(clean(g.t));const v=vfor(g.t);
-  if(v){u.voice=v;u.lang=v.lang}
-  u.rate=P.rate;u.pitch=P.pitch;
-  u.onstart=()=>{talking=true;express(g.e);n=Math.max(n,i+1)};
-  u.onend=u.onerror=()=>{if(i==segs.length-1)end()};
-  speechSynthesis.speak(u)});
-})}
-// ===== chat flow =====
-let vm=false,busy=false,listening=false,paused=false,rec,retry=0;
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const st=e=>$('st').textContent=e;
-async function ask(text){
- if(busy)return;busy=true;
- if(!vm)add('u',text);
- H.push({role:'user',content:text});
- express(emoOf(text,'neutral'));st('💭');
- const res=await brain(text);
- const segs=parse(res.t);
- const shown=segs.map(x=>x.t).join(' ');
- if(res.ok)H.push({role:'assistant',content:shown});else H.pop();
- save();
- if(!vm)add('k',shown);
- $('eng').textContent=res.src+' • 2000 expressions';
- st(vm?'🔊':'');
- await speak(segs);
- busy=false;st('');after();
-}
-const after=()=>{if(vm&&!paused)setTimeout(()=>listen(),250)};
-setInterval(()=>{if(vm&&!paused&&!busy&&!listening&&!talking)listen()},3000);
-function send(){const t=$('inp').value.trim();if(!t)return;$('inp').value='';ask(t)}
-$('snd').onclick=send;$('inp').onkeydown=e=>{if(e.key=='Enter')send()};
-// ===== listening (voice input) =====
-function listen(one){
- if(!SR){vm&&setVM(false);note('Voice input is not supported in this browser. Please use Chrome or Edge.');return}
- if(listening||busy||talking)return;
- rec=new SR();rec.lang=P.lang;rec.interimResults=false;
- let got=false,err='';
- rec.onstart=()=>{listening=true;st('🎧');$('mic').classList.add('on');express(pick(['curious','neutral']))};
- rec.onresult=e=>{got=true;retry=0;ask(e.results[0][0].transcript)};
- rec.onerror=e=>{err=e.error};
- rec.onend=()=>{listening=false;$('mic').classList.remove('on');if(!got)st('');
-  if(got||one||!vm||paused)return;
-  if(/not-allowed|service-not-allowed|audio-capture/.test(err)){setVM(false);note('The microphone is blocked or missing. '+(IFR?'This preview window does not allow it, so please download the file and open it in Chrome or Edge.':'Click the lock icon in the address bar, allow the microphone, and try again.'));return}
-  if(err=='network'||++retry>60){setVM(false);note('Voice recognition could not connect. Please check your internet and try again.');return}
-  setTimeout(()=>listen(),300)};
- try{rec.start()}catch(e){}
-}
-$('mic').onclick=()=>listening?rec.stop():listen(true);
-function setVM(on){
- vm=on;paused=false;retry=0;document.body.classList.toggle('vm',on);
- $('mv').classList.toggle('sel',on);$('mt').classList.toggle('sel',!on);
- speechSynthesis.cancel();try{rec&&rec.abort()}catch(e){}
- busy=false;listening=false;st('');
- if(on){P.audio=true;$('paudio').checked=true;save();busy=true;
-  speak(parse("[happy] Voice mode is on. [curious] Just talk to me, I'm listening!")).then(()=>{busy=false;after()})}
-}
-$('mv').onclick=()=>setVM(true);$('mt').onclick=()=>setVM(false);
-$('vbtn').onclick=()=>{paused=!paused;if(paused){speechSynthesis.cancel();try{rec.abort()}catch(e){}st('⏸');express('sleepy')}else{st('');after()}};
-// ===== understand the user's face (free, runs in the browser) =====
-let camOn=false,fi,faceEmo='',sadN=0,lastNudge=0;
-const MIRROR={happy:'happy',sad:'sad',angry:'scared',scared:'scared',surprised:'surprised',neutral:'curious'};
-const camTxt=t=>$('cam').textContent=t;
-function stopCam(){camOn=false;clearInterval(fi);const v=$('vid');v.srcObject&&v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;v.style.display='none';$('cam').classList.remove('on');camTxt('📷 Read my face');faceEmo=''}
-async function nudge(e){
- const t=e=='sad'?"[sad] You look a little sad. [love] I'm here for you. Do you want to talk about it?":"[scared] You look upset. [love] Take a slow breath with me. Do you want to tell me what happened?";
- busy=true;const segs=parse(t);if(!vm)add('k',segs.map(x=>x.t).join(' '));await speak(segs);busy=false;after();
-}
-$('cam').onclick=async()=>{
- if(camOn){stopCam();return}
- if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){note('This browser cannot open the camera. Please use Chrome, Edge or Safari.');return}
- const v=$('vid');
- try{camTxt('Opening camera...');
-  v.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
-  v.style.display='block';await v.play().catch(()=>{});
- }catch(e){camTxt('📷 Read my face');
-  note(e.name=='NotAllowedError'||e.name=='SecurityError'?'The camera is blocked. '+(IFR?'This preview window does not allow it, so please download the file and open it in Chrome or Edge.':'Click the lock icon in the address bar, allow the camera, and try again.'):'I could not open the camera ('+e.name+'). Is another app using it?');
-  return}
- camOn=true;$('cam').classList.add('on');camTxt('📷 Loading face reader...');
- try{
-  if(!window.faceapi){await new Promise((r,j)=>{const x=document.createElement('script');x.src='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js';x.onload=r;x.onerror=j;document.head.appendChild(x)})}
-  const M='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
-  await faceapi.nets.tinyFaceDetector.loadFromUri(M);await faceapi.nets.faceExpressionNet.loadFromUri(M);
- }catch(e){camTxt('📷 Camera on (face reader failed, tap to stop)');note('The camera works, but I could not download the face-reading model. Please check your internet connection and try again.');return}
- const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
- let strat=0,miss=0,run=false,last='';
- const optFor=()=>strat<2?new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.3}):new faceapi.SsdMobilenetv1Options({minConfidence:.3});
- async function nextStrat(){
-  strat++;miss=0;
-  if(strat==1){try{await faceapi.tf.setBackend('cpu');await faceapi.tf.ready()}catch(e){console.warn(e)}}
-  if(strat==2){try{await faceapi.nets.ssdMobilenetv1.loadFromUri(M)}catch(e){camTxt('📷 Could not load the backup face model')}}
- }
- camTxt('📷 Looking for your face...');
- fi=setInterval(async()=>{
-  if(!camOn||run||v.readyState<2||!v.videoWidth)return;run=true;
-  try{
-   // copy the current video frame to a canvas and read the face from that
-   cv.width=v.videoWidth;cv.height=v.videoHeight;cx.drawImage(v,0,0);
-   const px=cx.getImageData(0,0,cv.width,cv.height).data;let sum=0,n=0;
-   for(let k=0;k<px.length;k+=400){sum+=px[k]+px[k+1]+px[k+2];n+=3}
-   const bright=sum/n;
-   const d=await faceapi.detectSingleFace(cv,optFor()).withFaceExpressions();
-   if(!d){miss++;camTxt(bright<45?'📷 Too dark: please turn on a light':'📷 Looking for your face: look at the camera');if(miss>=6&&strat<2)await nextStrat();return}
-   miss=0;
-   const top=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1])[0][0];
-   faceEmo={fearful:'scared',disgusted:'angry'}[top]||top;
-   camTxt('📷 You look: '+faceEmo+' (tap to stop)');
-   if(faceEmo!==last&&!busy&&!talking){last=faceEmo;express(MIRROR[faceEmo]||'curious')}
-   sadN=(faceEmo=='sad'||faceEmo=='angry')?sadN+1:0;
-   if(sadN>=4&&!busy&&!talking&&!listening&&Date.now()-lastNudge>120000){lastNudge=Date.now();sadN=0;nudge(faceEmo)}
-  }catch(e){console.warn(e);miss++;camTxt('📷 Face reader error: '+(e.message||e));if(miss>=3&&strat<2)await nextStrat()}
-  finally{run=false}
- },1000);
-};
-// ===== start =====
-express('happy');
-add('k',(P.name?`Welcome back, ${P.name}! I missed you!`:"Hi! I'm Kchat, your companion. What's your name?")+" Ask me anything, or tap Voice chat to just talk!");
+/* ---------- settings you can change ---------- */
+const API = "https://text.pollinations.ai/openai";   // free, no key
+const MODEL = "openai";                                // change here if the free model name changes
+
+/* ---------- 2000 expressions = 10 eyes x 10 brows x 10 mouths x 2 cheeks ---------- */
+const eyeN=["round","happy","sad","wide","wink","heart","star","sleepy","angry","sparkle"];
+const browN=["none","raised","flat","angry","worried","one-up","arch","low","tilt","bounce"];
+const mouthN=["smile","grin","flat","frown","open","smirk","tongue","tiny","wavy","cat"];
+const BR=[null,[-36,0],[-34,0],[-30,18],[-30,-18],[-30,0,1],[-40,-6],[-24,0],[-32,10],[-38,6]];
+const EMO={neutral:[0,2,7,0],happy:[1,1,0,1],excited:[3,1,1,1],love:[5,1,0,1],sad:[2,4,3,0],angry:[8,3,3,0],
+thinking:[0,5,5,0],sleepy:[7,7,7,0],surprised:[3,6,4,0],playful:[4,5,6,0],cool:[9,2,5,0],curious:[0,1,7,0],
+proud:[6,1,0,1],silly:[9,9,8,0],laugh:[1,6,1,1],shy:[2,7,9,1],smart:[0,8,5,0],confused:[0,5,8,0]};
+const idx=([e,b,m,x])=>((e*10+b)*10+m)*2+x;
+
+let LED=getComputedStyle(document.documentElement).getPropertyValue("--led").trim()||"#ffb84d";
+function eye(cx,t,side){const y=100,c=LED;
+ switch(t){
+ case 0:return `<circle cx="${cx}" cy="${y}" r="26" fill="${c}"/>`;
+ case 1:return `<path d="M${cx-26} ${y+10} Q${cx} ${y-30} ${cx+26} ${y+10}" stroke="${c}" stroke-width="12" fill="none" stroke-linecap="round"/>`;
+ case 2:return `<ellipse cx="${cx}" cy="${y+6}" rx="22" ry="26" fill="${c}"/><rect x="${cx-26}" y="${y-24}" width="52" height="18" fill="#050505" transform="rotate(${side*14} ${cx} ${y})"/>`;
+ case 3:return `<circle cx="${cx}" cy="${y}" r="34" fill="${c}"/><circle cx="${cx+8}" cy="${y-8}" r="9" fill="#050505"/>`;
+ case 4:return side<0?`<circle cx="${cx}" cy="${y}" r="26" fill="${c}"/>`:`<path d="M${cx-24} ${y} L${cx+24} ${y}" stroke="${c}" stroke-width="12" stroke-linecap="round"/>`;
+ case 5:return `<path d="M${cx} ${y+28} C${cx-50} ${y-6} ${cx-18} ${y-40} ${cx} ${y-14} C${cx+18} ${y-40} ${cx+50} ${y-6} ${cx} ${y+28}Z" fill="${c}"/>`;
+ case 6:return `<path d="M${cx} ${y-30} L${cx+9} ${y-9} L${cx+31} ${y-9} L${cx+13} ${y+5} L${cx+20} ${y+28} L${cx} ${y+14} L${cx-20} ${y+28} L${cx-13} ${y+5} L${cx-31} ${y-9} L${cx-9} ${y-9}Z" fill="${c}"/>`;
+ case 7:return `<path d="M${cx-26} ${y+4} Q${cx} ${y+22} ${cx+26} ${y+4}" stroke="${c}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+ case 8:return `<ellipse cx="${cx}" cy="${y+4}" rx="24" ry="22" fill="${c}"/><rect x="${cx-30}" y="${y-30}" width="60" height="22" fill="#050505" transform="rotate(${-side*20} ${cx} ${y-12})"/>`;
+ default:return `<circle cx="${cx}" cy="${y}" r="18" fill="${c}"/><circle cx="${cx-6}" cy="${y-6}" r="5" fill="#fff"/><path d="M${cx+26} ${y-26}l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="${c}"/>`;}}
+function mouth(t){const c=LED,y=190,s=`stroke="${c}" stroke-width="10" fill="none" stroke-linecap="round"`;
+ return [`<path d="M170 ${y} Q200 ${y+28} 230 ${y}" ${s}/>`,
+ `<path d="M160 ${y-4} Q200 ${y+46} 240 ${y-4}Z" fill="${c}"/>`,
+ `<path d="M172 ${y+8} H228" ${s}/>`,
+ `<path d="M170 ${y+18} Q200 ${y-10} 230 ${y+18}" ${s}/>`,
+ `<ellipse cx="200" cy="${y+10}" rx="18" ry="24" fill="${c}"/>`,
+ `<path d="M170 ${y+8} Q205 ${y+20} 235 ${y-6}" ${s}/>`,
+ `<path d="M165 ${y-2} Q200 ${y+22} 235 ${y-2}" ${s}/><path d="M205 ${y+10} v22 a9 9 0 0 0 18 0 v-22z" fill="#ff6f91"/>`,
+ `<circle cx="200" cy="${y+8}" r="7" fill="${c}"/>`,
+ `<path d="M165 ${y+8} q9 -14 18 0 t18 0 t18 0 t18 0" ${s}/>`,
+ `<path d="M168 ${y} q16 22 32 0 q16 22 32 0" ${s}/>`][t];}
+function face([e,b,m,x]){const br=BR[b];
+ let h="";
+ if(br){const [dy,r,one]=br;
+  h+=`<path d="M90 ${100+dy} H150" stroke="${LED}" stroke-width="9" stroke-linecap="round" transform="rotate(${r} 120 ${100+dy})"/>`;
+  h+=`<path d="M250 ${100+dy-(one?14:0)} H310" stroke="${LED}" stroke-width="9" stroke-linecap="round" transform="rotate(${-r} 280 ${100+dy})"/>`;}
+ h+=eye(120,e,-1)+eye(280,e,1)+mouth(m);
+ if(x)h+=`<ellipse cx="78" cy="160" rx="18" ry="9" fill="#ff6f91" opacity=".55"/><ellipse cx="322" cy="160" rx="18" ry="9" fill="#ff6f91" opacity=".55"/>`;
+ return `<svg viewBox="0 0 400 240"><g id="eyes" style="transform-origin:200px 100px;transition:transform .08s">${h}</g></svg>`;}
+let cur=EMO.neutral,curName="neutral",speakTimer=null;
+const scr=document.getElementById("screen");
+function show(name){const f=EMO[name]||EMO.neutral;cur=f;curName=name;
+ scr.querySelector("svg")?.remove();scr.insertAdjacentHTML("afterbegin",face(f));
+ document.getElementById("tag").textContent=`${name} · expression ${idx(f)+1} of 2000`;}
+function setLED(c){LED=c;document.documentElement.style.setProperty("--led",c);show(curName);}
+setInterval(()=>{const g=document.getElementById("eyes");if(!g)return;g.style.transform="scaleY(.1)";setTimeout(()=>g.style.transform="",110);},3600);
+function talkOn(){clearInterval(speakTimer);let o=false;speakTimer=setInterval(()=>{o=!o;const f=[...cur];f[2]=o?4:cur[2];
+ scr.querySelector("svg")?.remove();scr.insertAdjacentHTML("afterbegin",face(f));},230);}
+function talkOff(){clearInterval(speakTimer);show(curName);}
+
+/* ---------- LED colours ---------- */
+["#ffb84d","#5ff2d0","#7cc4ff","#ff7aa8","#ffffff"].forEach(c=>{const d=document.createElement("button");d.className="dot";d.style.background=c;d.setAttribute("aria-label","LED colour "+c);d.onclick=()=>{setLED(c);save();};document.getElementById("dots").append(d);});
+
+/* ---------- memory ---------- */
+let S=JSON.parse(localStorage.getItem("kchat")||"{}");S.mem=S.mem||[];S.persona=S.persona||"playful";S.led=S.led||"#ffb84d";
+function save(){S.persona=persona.value;S.led=LED;localStorage.setItem("kchat",JSON.stringify(S));}
+function renderMem(){const m=document.getElementById("mem");m.innerHTML="";S.mem.forEach((t,i)=>{const s=document.createElement("span");s.textContent=t+" ×";s.onclick=()=>{S.mem.splice(i,1);save();renderMem();};m.append(s);});if(!S.mem.length)m.innerHTML="<small>nothing yet. Try “I like football”.</small>";}
+function learn(t){const add=x=>{x=x.trim();if(x&&!S.mem.includes(x)&&S.mem.length<25)S.mem.push(x);};
+ let r;
+ if(r=t.match(/my name is (\w+)/i))add("name: "+r[1]);
+ if(r=t.match(/\bi (?:really |also )?(?:like|love|enjoy|play|watch|prefer) ([^.!?,]{2,40})/i))add("likes "+r[1]);
+ if(r=t.match(/\bi (?:hate|dislike|can't stand) ([^.!?,]{2,40})/i))add("dislikes "+r[1]);
+ if(r=t.match(/my fav(?:ou?rite)? (\w+) is ([^.!?,]{2,40})/i))add("favourite "+r[1]+": "+r[2]);
+ save();renderMem();}
+
+/* ---------- personalities ---------- */
+const P={playful:"Playful, jokey, bouncy, uses fun wordplay and light emoji-free humour.",
+genius:"A precise genius: rigorous, concise, explains the key idea clearly, gives exact facts and numbers.",
+caring:"Warm, gentle and encouraging; notices feelings and responds like a close friend.",
+sassy:"Witty and sassy with friendly teasing, never mean.",calm:"Slow, peaceful and reassuring, like a mindful guide.",
+coach:"An energetic sports coach: motivating, short punchy sentences, loves sports talk.",storyteller:"A cosy storyteller who wraps answers in small vivid images."};
+function sys(){return `You are K, the face-screen companion robot inside the website "K chat". Personality: ${P[persona.value]} Stay in this personality exactly. Answer accurately; if unsure, say so. Keep replies to 1-3 short sentences unless asked for more. Always begin the reply with one tag from [${Object.keys(EMO).join(", ")}] that matches the feeling of the reply, e.g. "[happy] Hi!". Facts you know about the user (use them naturally): ${S.mem.join("; ")||"none yet"}.${camOn?" A live camera frame from the user's surroundings is attached; describe and answer about what you actually see.":""}`;}
+
+/* ---------- chat ---------- */
+const log=document.getElementById("log"),inp=document.getElementById("inp");
+let history=[],audioOn=false,camOn=false,speaking=false;
+function add(cls,t){const d=document.createElement("div");d.className="m "+cls;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight;}
+function frame(){const v=document.getElementById("cam"),c=document.createElement("canvas");c.width=512;c.height=Math.round(512*(v.videoHeight||3)/(v.videoWidth||4));c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.6);}
+function offline(q){const t=q.toLowerCase();
+ if(/time/.test(t))return "[curious] It is "+new Date().toLocaleTimeString()+".";
+ if(/date|day/.test(t))return "[happy] Today is "+new Date().toDateString()+".";
+ const m=q.replace(/[?=]/g,"").match(/[\d+\-*/().\s]{3,}/);
+ if(m&&/\d\s*[+\-*/]\s*\d/.test(m[0])){try{return "[smart] That is "+Function('"use strict";return ('+m[0]+')')()+".";}catch(e){}}
+ return "[sad] I can't reach my brain online right now. Check your internet and try again.";}
+async function ask(q){
+ if(!q.trim())return;add("u",q);learn(q);
+ show("thinking");const t0=performance.now();
+ let content=q;
+ if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
+ history.push({role:"user",content});history=history.slice(-10);
+ let out;
+ try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,
+   body:JSON.stringify({model:MODEL,max_tokens:250,messages:[{role:"system",content:sys()},...history]})});
+  clearTimeout(to);const j=await r.json();out=j.choices[0].message.content;
+ }catch(e){out=offline(q);}
+ document.getElementById("ms").textContent=((performance.now()-t0)/1000).toFixed(1)+" s";
+ let emo="neutral";const m=out.match(/^\s*\[(\w+)\]\s*/);
+ if(m){if(EMO[m[1].toLowerCase()])emo=m[1].toLowerCase();out=out.slice(m[0].length);}
+ else if(/haha|funny|joke/i.test(out))emo="laugh";
+ history.push({role:"assistant",content:out});
+ add("b",out);show(emo);speak(out);}
+function speak(t){if(!audioOn||!window.speechSynthesis){return;}
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);
+ u.pitch=persona.value==="calm"?.8:persona.value==="playful"?1.4:1.1;u.rate=persona.value==="coach"?1.2:1;
+ u.onstart=()=>{speaking=true;try{rec&&rec.stop()}catch(e){};talkOn();};
+ u.onend=u.onerror=()=>{speaking=false;talkOff();listen();};
+ speechSynthesis.speak(u);}
+
+/* ---------- audio ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec;
+function listen(){if(!audioOn||speaking||!SR)return;
+ rec=new SR();rec.lang=navigator.language||"en-US";rec.interimResults=false;
+ rec.onresult=e=>ask(e.results[0][0].transcript);
+ rec.onend=()=>{if(audioOn&&!speaking&&!busyAsk())setTimeout(listen,300);};
+ rec.onerror=()=>{};try{rec.start();show("curious");}catch(e){}}
+const busyAsk=()=>false;
+
+/* ---------- controls ---------- */
+const bT=document.getElementById("bText"),bA=document.getElementById("bAudio"),bC=document.getElementById("bCam");
+function mode(a){audioOn=a;bA.setAttribute("aria-pressed",a);bT.setAttribute("aria-pressed",!a);
+ document.getElementById("audioRow").style.display=a?"flex":"none";document.getElementById("textRow").style.display=a?"none":"flex";
+ if(a){if(!SR)add("b","Voice listening needs Chrome, Edge or Safari. Text mode still works.");else listen();}else{try{rec&&rec.stop()}catch(e){};speechSynthesis.cancel();}}
+bT.onclick=()=>mode(false);bA.onclick=()=>mode(true);
+bC.onclick=async()=>{const v=document.getElementById("cam");
+ if(camOn){v.srcObject.getTracks().forEach(t=>t.stop());v.style.display="none";camOn=false;bC.setAttribute("aria-pressed",false);return;}
+ try{v.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});v.style.display="block";camOn=true;bC.setAttribute("aria-pressed",true);show("curious");add("b","Camera on. Ask me about what's around you.");}
+ catch(e){add("b","I couldn't open the camera. Allow camera access in your browser and open this page over https or localhost.");}};
+document.getElementById("send").onclick=()=>{const v=inp.value;inp.value="";ask(v);};
+inp.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=inp.value;inp.value="";ask(v);}});
+persona.onchange=()=>{save();history=[];show({playful:"playful",genius:"smart",caring:"love",sassy:"cool",calm:"sleepy",coach:"excited",storyteller:"curious"}[persona.value]);};
+
+persona.value=S.persona;setLED(S.led);renderMem();show("happy");
+add("b","Hi, I'm K. Pick a personality, then type or switch to Audio. Tell me what you like and I'll remember it.");
 </script>
 </body>
 </html>
