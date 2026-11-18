@@ -63,6 +63,7 @@ small{color:var(--mute)}
     <span id="listen">Listening… speak to K.</span>
   </div>
 
+  <div class="row"><input type="password" id="key" placeholder="Optional free API key (enter.pollinations.ai) for faster, steadier answers" aria-label="Optional API key"></div>
   <div class="mem row"><small>K remembers (tap to forget):</small><span id="mem" class="row" style="gap:6px"></span></div>
   <small>Free. Instant answers (time, date, maths) take under 0.1 s, “who/what is…” questions come from Wikipedia, everything else streams from a free AI, so the first words usually appear fast. The timer under the face shows the real speed on your connection.</small>
 </div>
@@ -70,7 +71,7 @@ small{color:var(--mute)}
 <script>
 /* ---------- settings you can change ---------- */
 const API = "https://text.pollinations.ai/openai";   // free, no key
-const MODEL = "openai-fast";                           // fastest free text model (camera uses "openai" for vision)
+const MODEL = "";   // empty = the free endpoint picks its default model (most reliable)
 
 /* ---------- 2000 expressions = 10 eyes x 10 brows x 10 mouths x 2 cheeks ---------- */
 const eyeN=["round","happy","sad","wide","wink","heart","star","sleepy","angry","sparkle"];
@@ -172,19 +173,37 @@ async function wiki(q){
  const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(m[1])+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
  clearTimeout(to);const j=await r.json();const p=Object.values(j.query.pages)[0];
  return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}
-/* streaming LLM: words appear as they arrive */
-async function llm(content,onText){
- const body=m=>JSON.stringify({model:camOn?"openai":MODEL,max_tokens:camOn?160:100,temperature:.6,...m,messages:[{role:"system",content:sys()},...history,{role:"user",content}]});
+/* AI brain: tries each free route one after another (the free tier allows only one request at a time) */
+let lastErr="";
+async function tryPost(url,hdr,model,content,onText){
  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),9000);
- let full="";
- try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,body:body({stream:true})});
+ const b={max_tokens:camOn?160:100,temperature:.6,stream:true,messages:[{role:"system",content:sys()},...history,{role:"user",content}]};
+ if(model)b.model=model;
+ try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json",...hdr},signal:ctl.signal,body:JSON.stringify(b)});
+  if(!r.ok){lastErr=url.split("/")[2]+" replied "+r.status;return "";}
+  let full="";
+  if((r.headers.get("content-type")||"").includes("json")||!r.body){const j=await r.json();full=j.choices[0].message.content||"";onText(full);return full;}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf="";
   for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
    const lines=buf.split("\n");buf=lines.pop();
    for(const l of lines){if(!l.startsWith("data:"))continue;const d=l.slice(5).trim();if(d==="[DONE]")continue;
-    try{const c=JSON.parse(d).choices?.[0]?.delta?.content;if(c){full+=c;onText(full);}}catch(e){}}}}catch(e){}
- if(!full){try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl.signal,body:body({})});const j=await r.json();full=j.choices[0].message.content;onText(full);}catch(e){}}
- clearTimeout(to);return full;}
+    try{const c=JSON.parse(d).choices?.[0]?.delta?.content;if(c){full+=c;onText(full);}}catch(e){}}}
+  return full;
+ }catch(e){lastErr=url.split("/")[2]+": "+(e.message||e);return "";}finally{clearTimeout(to);}}
+async function llm(content,onText){
+ let o="";
+ if(S.key){o=await tryPost("https://gen.pollinations.ai/v1/chat/completions",{Authorization:"Bearer "+S.key},"openai",content,onText);if(o)return o;}
+ o=await tryPost(API,{},MODEL,content,onText);if(o)return o;
+ try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),9000);
+  const p=history.slice(-4).map(m=>m.role+": "+m.content).join("\n")+"\nuser: "+(typeof content==="string"?content:content[0].text);
+  const r=await fetch("https://text.pollinations.ai/"+encodeURIComponent(p.slice(-1200))+"?system="+encodeURIComponent(sys()),{signal:ctl.signal});
+  clearTimeout(to);if(r.ok){o=await r.text();onText(o);return o;}lastErr+=" | GET replied "+r.status;}
+ catch(e){lastErr+=" | GET: "+(e.message||e);}
+ return "";}
+/* last resort when the AI route is down: best Wikipedia match for the question */
+async function wikiAny(q){try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),3000);
+ const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(q)+"&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*",{signal:ctl.signal});
+ const j=await r.json();const p=Object.values(j.query.pages)[0];return p&&p.extract&&p.extract.length>30?"[smart] "+p.extract.replace(/\s*\([^)]*\)/g,""):null;}catch(e){return null;}}
 function finish(out,bub){
  let emo="neutral";const m=out.match(/^\s*\[(\w+)\]\s*/);
  if(m){if(EMO[m[1].toLowerCase()])emo=m[1].toLowerCase();out=out.slice(m[0].length);}
@@ -198,7 +217,8 @@ async function ask(q){
  if(!out){src="AI";let first=true,content=q;
   if(camOn)content=[{type:"text",text:q},{type:"image_url",image_url:{url:frame()}}];
   out=await llm(content,t=>{if(first){first=false;msEl.textContent="first words "+secs();}bub.textContent=t.replace(/^\s*\[\w*\]?\s*/,"");});
-  if(!out)out="[sad] I can't reach my online brain. Check your internet and try again.";
+  if(!out&&!camOn){out=await wikiAny(q);if(out)src="Wikipedia (AI route down)";}
+  if(!out)out="[sad] My online brain didn\'t answer ("+(lastErr||"no response")+"). Check your internet, then try again in a few seconds. The free service allows one request at a time.";
   else msEl.textContent="first words "+msEl.textContent.replace("first words ","")+" · done "+secs();}
  else msEl.textContent=src+" · "+secs();
  const clean=finish(out,bub);
@@ -233,6 +253,7 @@ document.getElementById("send").onclick=()=>{const v=inp.value;inp.value="";ask(
 inp.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=inp.value;inp.value="";ask(v);}});
 persona.onchange=()=>{save();history=[];show({playful:"playful",genius:"smart",caring:"love",sassy:"cool",calm:"sleepy",coach:"excited",storyteller:"curious"}[persona.value]);};
 
+const keyEl=document.getElementById("key");keyEl.value=S.key||"";keyEl.onchange=()=>{S.key=keyEl.value.trim();save();};
 persona.value=S.persona;setLED(S.led);renderMem();show("happy");
 add("b","Hi, I'm K. Pick a personality, then type or switch to Audio. Tell me what you like and I'll remember it.");
 </script>
